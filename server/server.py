@@ -40,10 +40,11 @@ def upld():
         bytes_received += BUFFER_SIZE
     output_file.close()
     print("\nReceived file: {}".format(file_name))
+    # save_history("\nReceived file: {}".format(file_name))
     # Send upload performance details
     conn.sendall(struct.pack("f", time.time() - start_time))
     conn.sendall(struct.pack("i", file_size))
-    return
+    return None
 
 
 def list_files():
@@ -81,7 +82,7 @@ def list_files():
     # Final check
     conn.recv(BUFFER_SIZE)
     print("Successfully sent file listing")
-    return
+    return None 
 
 
 def dwld():
@@ -97,7 +98,7 @@ def dwld():
         # Then the file doesn't exist, and send an error code
         print("File name not valid")
         conn.sendall(struct.pack("i", -1))
-        return
+        return None
     # Wait for ok to send the file
     conn.recv(BUFFER_SIZE)
     # Enter a loop to send the file
@@ -113,7 +114,7 @@ def dwld():
     # Get client go-ahead, then send download details
     conn.recv(BUFFER_SIZE)
     conn.sendall(struct.pack("f", time.time() - start_time))
-    return
+    return None
 
 
 def delf():
@@ -128,7 +129,7 @@ def delf():
     else:
         # Then the file doesn't exist
         conn.sendall(struct.pack("i", -1))
-        return
+        return None
     # Wait for deletion confirmation
     confirm_delete = conn.recv(BUFFER_SIZE).decode()
     if confirm_delete == "Y":
@@ -144,8 +145,93 @@ def delf():
         # User abandoned deletion
         # The server probably received "N", but else used as a safety catch-all
         print("Delete abandoned by the client!")
-        return
+        return None
 
+def make_directory():
+    # Send go-ahead
+    conn.sendall(b"1")
+    # Get Directory details
+    directory_name_length = struct.unpack("h", conn.recv(2))[0]
+    print(directory_name_length)
+    conn.sendall(b"1")
+    directory_name = conn.recv(directory_name_length).decode()
+    print(directory_name)
+    conn.sendall(b"1")
+    try: 
+        os.mkdir(directory_name) 
+        conn.sendall(b"1")
+    except OSError as error: 
+        print(error)
+        conn.sendall(b"0")
+    return None
+
+
+def remove_directory():
+    # Send go-ahead
+    conn.sendall(b"1")
+    # Get Directory details
+    directory_name_length = struct.unpack("h", conn.recv(2))[0]
+    print(directory_name_length)
+    conn.sendall(b"1")
+    directory_name = conn.recv(directory_name_length).decode()
+    print(directory_name)
+    conn.sendall(b"1")
+    try: 
+        os.rmdir(directory_name) 
+        conn.sendall(b"1")
+    except OSError as error: 
+        print(error)
+        conn.sendall(b"0")
+    return None
+
+
+def get_path_directory():
+    # Send go-ahead
+    conn.sendall(b"1")
+
+    try:
+        cwd = os.getcwd()
+        print(cwd)
+        conn.sendall(str(sys.getsizeof(cwd)).encode())
+        conn.recv(BUFFER_SIZE)
+        conn.sendall(cwd.encode())
+        conn.recv(BUFFER_SIZE)
+    except OSError as error: 
+        print(error)
+    except Exception as e:
+        print(e)
+        print("couldn't send path.")
+    return None
+
+
+def change_current_directory():
+    # Send go-ahead
+    conn.sendall(b"1")
+    # Get Directory details
+    new_path_length = struct.unpack("h", conn.recv(2))[0]
+    conn.sendall(b"1")
+    new_path = conn.recv(new_path_length).decode()
+    conn.sendall(b"1")
+    try: 
+        os.chdir(new_path) 
+        conn.sendall(b"1")
+    except OSError as error: 
+        print(error)
+        conn.sendall(b"0")
+    return None
+
+def noghte_noghte_directory():
+        # Send go-ahead
+        conn.sendall(b"1")
+        # Get Directory details
+        
+        try: 
+            os.chdir('../') 
+            conn.sendall(b"1")
+        except OSError as error: 
+            print(error)
+            conn.sendall(b"0")
+        return None
 
 def quit_program():
     # Send quit confirmation
@@ -153,24 +239,42 @@ def quit_program():
     # Close and restart the server
     conn.close()
     s.close()
-    os.execl(sys.executable, sys.executable, *sys.argv)
+    exit()
 
+
+# def save_history(report: str):
+#     with open("history.txt", "a") as f:
+#         f.write(report)
 
 while True:
     # Enter into a while loop to receive commands from the client
     print("\n\nWaiting for instruction")
     data = conn.recv(BUFFER_SIZE).decode()
     print("\nReceived instruction: {}".format(data))
+    # save_history(data)
     # Check the command and respond correctly
-    if data == "UPLD":
+    if data == "STOR":
         upld()
     elif data == "LIST":
         list_files()
-    elif data == "DWLD":
+    elif data == "RETR":
         dwld()
-    elif data == "DELF":
+    elif data == "DELE":
         delf()
+    elif data == "MKD":
+        make_directory()
+    elif data == "RMD":
+        remove_directory()
+    elif data == "PWD":
+        get_path_directory()
+    elif data == "CWD":
+        change_current_directory()
+    elif data == "CDUP":
+        noghte_noghte_directory()
     elif data == "QUIT":
         quit_program()
+        break
+    else:
+        pass
     # Reset the data to loop
     data = None

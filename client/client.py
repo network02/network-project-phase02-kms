@@ -9,7 +9,7 @@ TCP_PORT = 1456  # Just a random choice
 BUFFER_SIZE = 1024  # Standard choice
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def conn():
+def connect():
     # Connect to the server
     print("Sending server request...")
     try:
@@ -26,13 +26,13 @@ def upld(file_name):
         content = open(file_name, "rb")
     except:
         print("Couldn't open file. Make sure the file name was entered correctly.")
-        return
+        return None
     try:
         # Make upload request
         s.sendall(b"UPLD")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
-        return
+        return None 
     try:
         # Wait for server acknowledgement then send file details
         # Wait for server ok
@@ -60,8 +60,8 @@ def upld(file_name):
         print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
     except:
         print("Error sending file")
-        return
-    return
+        return None
+    return None
 
 def list_files():
     # List the files available on the file server
@@ -72,7 +72,7 @@ def list_files():
         s.sendall(b"LIST")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
-        return
+        return None
     try:
         # First get the number of files in the directory
         number_of_files = struct.unpack("i", s.recv(4))[0]
@@ -98,14 +98,14 @@ def list_files():
         print("Total directory size: {}b".format(total_directory_size))
     except:
         print("Couldn't retrieve listing")
-        return
+        return None
     try:
         # Final check
         s.sendall(b"1")
-        return
+        return None
     except:
         print("Couldn't get final server confirmation")
-        return
+        return None
 
 def dwld(file_name):
     # Download given file
@@ -115,7 +115,7 @@ def dwld(file_name):
         s.sendall(b"DWLD")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
-        return
+        return None
     try:
         # Wait for server ok, then make sure the file exists
         s.recv(BUFFER_SIZE)
@@ -127,7 +127,7 @@ def dwld(file_name):
         if file_size == -1:
             # If file size is -1, the file does not exist
             print("File does not exist. Make sure the name was entered correctly")
-            return
+            return None
     except:
         print("Error checking file")
     try:
@@ -151,8 +151,8 @@ def dwld(file_name):
         print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
     except:
         print("Error downloading file")
-        return
-    return
+        return None
+    return None
 
 def delf(file_name):
     # Delete specified file from the file server
@@ -163,23 +163,23 @@ def delf(file_name):
         s.recv(BUFFER_SIZE)
     except:
         print("Couldn't connect to the server. Make sure a connection has been established.")
-        return
+        return None
     try:
         # Send file name length, then file name
         s.sendall(struct.pack("h", sys.getsizeof(file_name)))
         s.sendall(file_name.encode())
     except:
         print("Couldn't send file details")
-        return
+        return None
     try:
         # Get confirmation that file does/doesn't exist
         file_exists = struct.unpack("i", s.recv(4))[0]
         if file_exists == -1:
             print("The file does not exist on the server")
-            return
+            return None
     except:
         print("Couldn't determine file existence")
-        return
+        return None
     try:
         # Confirm user wants to delete the file
         confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
@@ -191,7 +191,7 @@ def delf(file_name):
             confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
     except:
         print("Couldn't confirm deletion status")
-        return
+        return None
     try:
         # Send confirmation
         if confirm_delete == "Y" or confirm_delete == "YES":
@@ -201,18 +201,142 @@ def delf(file_name):
             delete_status = struct.unpack("i", s.recv(4))[0]
             if delete_status == 1:
                 print("File successfully deleted")
-                return
+                return None
             else:
                 # Client will probably send -1 to get here, but an else is used as more of a catch-all
                 print("File failed to delete")
-                return
+                return None
         else:
             s.sendall(b"N")
             print("Delete abandoned by user!")
-            return
+            return None
     except:
         print("Couldn't delete the file")
-        return
+        return None
+
+def make_directory(directory_name):
+    # Delete specified file from the file server
+    print("Creating Directory: {}...".format(directory_name))
+    try:
+        # Send request, then wait for go-ahead
+        s.sendall(b"MKD")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+    try:
+        # Send directory path name length, then directory path name
+        s.sendall(struct.pack("h", sys.getsizeof(directory_name)))
+        s.recv(BUFFER_SIZE)
+        s.sendall(directory_name.encode())
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't send Directory details")
+        return None
+     
+    directory_check = int(s.recv(BUFFER_SIZE).decode())
+    if directory_check:
+        print("directory created successfully.")
+    else:
+        print("couldn't create the directory.")
+    return None
+
+
+def remove_directory(directory_name):
+    # Delete specified file from the file server
+    print("Removing Directory: {}...".format(directory_name))
+    try:
+        # Send request, then wait for go-ahead
+        s.sendall(b"RMD")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+    try:
+        # Send directory path name length, then directory path name
+        s.sendall(struct.pack("h", sys.getsizeof(directory_name)))
+        s.recv(BUFFER_SIZE)
+        s.sendall(directory_name.encode())
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't send Directory details")
+        return None
+     
+    directory_check = int(s.recv(BUFFER_SIZE).decode())
+    if directory_check:
+        print("directory removed successfully.")
+    else:
+        print("couldn't remove the directory.")
+    return None
+        
+    
+def get_path_directory():
+    # Delete specified file from the file server
+    print("Getting the path...")
+    try:
+        # Send request, then wait for go-ahead
+        s.sendall(b"PWD")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+    try:
+        # Send directory path name length, then directory path name
+        path_len = int(s.recv(BUFFER_SIZE).decode())
+        print(path_len)
+        s.sendall(b"1")
+        path = s.recv(path_len).decode()
+        s.sendall(b"1")
+        print(path)
+    except:
+        print("Couldn't receive path.")
+        return None
+    return None
+
+
+def change_current_directory(new_path):
+
+    print("Changing Directory: {}...".format(new_path))
+    try:
+        # Send request, then wait for go-ahead
+        s.sendall(b"CWD")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+    try:
+        # Send directory path name length, then directory path name
+        s.sendall(struct.pack("h", sys.getsizeof(new_path)))
+        s.recv(BUFFER_SIZE)
+        s.sendall(new_path.encode())
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't send Path details")
+        return None
+     
+    change_check = int(s.recv(BUFFER_SIZE).decode())
+    if change_check:
+        print("path changed successfully.")
+    else:
+        print("couldn't change path.")
+    return None
+
+def noghte_noghte_directory():
+    print("Changing Directory: {}...".format('../'))
+    try:
+        # Send request, then wait for go-ahead
+        s.sendall(b"CDUP")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+    
+    change_check = int(s.recv(BUFFER_SIZE).decode())
+    if change_check:
+        print("path changed successfully.")
+    else:
+        print("couldn't change path.")
+    return None
 
 def quit_program():
     s.sendall(b"QUIT")
@@ -220,24 +344,47 @@ def quit_program():
     s.recv(BUFFER_SIZE)
     s.close()
     print("Server connection ended")
-    return
+    return None
 
-print("\n\nWelcome to the FTP client.\n\nCall one of the following functions:\nCONN           : Connect to server\nUPLD file_path : Upload file\nLIST           : List files\nDWLD file_path : Download file\nDELF file_path : Delete file\nQUIT           : Exit")
+print("""\n\nWelcome to the FTP client.
+      
+      Call one of the following functions:
+      CONN               : Connect to server
+      STOR file_path     : Upload file
+      LIST               : List files
+      RETR file_path     : Download file
+      DELE file_path     : Delete file
+      MKD directory_name : Create directory
+      RMD directory_name : Remove directory
+      PWD                : Current path
+      CWD path           : changing path
+      CDUP               : ../
+      QUIT               : Exit""")
 
 while True:
     # Listen for a command
-    prompt = input("\nEnter a command: ")
-    if prompt[:4].upper() == "CONN":
-        conn()
-    elif prompt[:4].upper() == "UPLD":
-        upld(prompt[5:])
-    elif prompt[:4].upper() == "LIST":
+    prompt = input("\nEnter a command: ").split()
+    if prompt[0].upper() == "CONN":
+        connect()
+    elif prompt[0].upper() == "STOR":
+        upld(prompt[1])
+    elif prompt[0].upper() == "LIST":
         list_files()
-    elif prompt[:4].upper() == "DWLD":
-        dwld(prompt[5:])
-    elif prompt[:4].upper() == "DELF":
-        delf(prompt[5:])
-    elif prompt[:4].upper() == "QUIT":
+    elif prompt[0].upper() == "RETR":
+        dwld(prompt[1])
+    elif prompt[0].upper() == "DELE":
+        delf(prompt[1])
+    elif prompt[0].upper() == "MKD":
+        make_directory(prompt[1])
+    elif prompt[0].upper() == "RMD":
+        remove_directory(prompt[1])
+    elif prompt[0].upper() == "PWD":
+        get_path_directory()
+    elif prompt[0].upper() == "CWD":
+        change_current_directory(prompt[1])
+    elif prompt[0].upper() == "CDUP":
+        noghte_noghte_directory()
+    elif prompt[0].upper() == "QUIT":
         quit_program()
         break
     else:
