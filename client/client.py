@@ -29,7 +29,7 @@ def upld(file_name):
         return None
     try:
         # Make upload request
-        s.sendall(b"UPLD")
+        s.sendall(b"STOR")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
         return None 
@@ -112,7 +112,7 @@ def dwld(file_name):
     print("Downloading file: {}".format(file_name))
     try:
         # Send server request
-        s.sendall(b"DWLD")
+        s.sendall(b"RETR")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
         return None
