@@ -19,48 +19,55 @@ def connect():
         print("Connection unsuccessful. Make sure the server is online.")
 
 def upld(file_name):
-    # Upload a file
-    print("\nUploading file: {}...".format(file_name))
-    try:
-        # Check if the file exists
-        content = open(file_name, "rb")
-    except:
-        print("Couldn't open file. Make sure the file name was entered correctly.")
-        return None
     try:
         # Make upload request
         s.sendall(b"STOR")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
         return None 
-    try:
-        # Wait for server acknowledgement then send file details
-        # Wait for server ok
-        s.recv(BUFFER_SIZE)
-        # Send file name size and file name
-        s.sendall(struct.pack("h", sys.getsizeof(file_name)))
-        s.sendall(file_name.encode())
-        # Wait for server ok then send file size
-        s.recv(BUFFER_SIZE)
-        s.sendall(struct.pack("i", os.path.getsize(file_name)))
-    except:
-        print("Error sending file details")
-    try:
-        # Send the file in chunks defined by BUFFER_SIZE
-        # Doing it this way allows for unlimited potential file sizes to be sent
-        l = content.read(BUFFER_SIZE)
-        print("\nSending...")
-        while l:
-            s.sendall(l)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_request:
+        try:
+            data_request.connect((TCP_IP, TCP_PORT))
+            print("Connection successful")
+        except:
+            print("Connection unsuccessful. Make sure the server is online.")
+
+        # Upload a file
+        print("\nUploading file: {}...".format(file_name))
+        try:
+            # Check if the file exists
+            content = open(file_name, "rb")
+        except:
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            return None
+        try:
+            # Wait for server acknowledgement then send file details
+            # Wait for server ok
+            data_request.recv(BUFFER_SIZE)
+            # Send file name size and file name
+            data_request.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_request.sendall(file_name.encode())
+            # Wait for server ok then send file size
+            data_request.recv(BUFFER_SIZE)
+            data_request.sendall(struct.pack("i", os.path.getsize(file_name)))
+        except:
+            print("Error sending file details")
+        try:
+            # Send the file in chunks defined by BUFFER_SIZE
+            # Doing it this way allows for unlimited potential file sizes to be sent
             l = content.read(BUFFER_SIZE)
-        content.close()
-        # Get upload performance details
-        upload_time = struct.unpack("f", s.recv(4))[0]
-        upload_size = struct.unpack("i", s.recv(4))[0]
-        print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
-    except:
-        print("Error sending file")
-        return None
+            print("\nSending...")
+            while l:
+                data_request.sendall(l)
+                l = content.read(BUFFER_SIZE)
+            content.close()
+            # Get upload performance details
+            upload_time = struct.unpack("f", data_request.recv(4))[0]
+            upload_size = struct.unpack("i", data_request.recv(4))[0]
+            print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
+        except:
+            print("Error sending file")
+            return None
     return None
 
 def list_files():
@@ -108,50 +115,57 @@ def list_files():
         return None
 
 def dwld(file_name):
-    # Download given file
-    print("Downloading file: {}".format(file_name))
-    try:
-        # Send server request
-        s.sendall(b"RETR")
-    except:
-        print("Couldn't make server request. Make sure a connection has been established.")
-        return None
-    try:
-        # Wait for server ok, then make sure the file exists
-        s.recv(BUFFER_SIZE)
-        # Send file name length, then name
-        s.sendall(struct.pack("h", sys.getsizeof(file_name)))
-        s.sendall(file_name.encode())
-        # Get file size (if exists)
-        file_size = struct.unpack("i", s.recv(4))[0]
-        if file_size == -1:
-            # If file size is -1, the file does not exist
-            print("File does not exist. Make sure the name was entered correctly")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_request:
+        try:
+            data_request.connect((TCP_IP, TCP_PORT))
+            print("Connection successful")
+        except:
+            print("Connection unsuccessful. Make sure the server is online.")
+   
+        # Download given file
+        print("Downloading file: {}".format(file_name))
+        try:
+            # Send server request
+            data_request.sendall(b"RETR")
+        except:
+            print("Couldn't make server request. Make sure a connection has been established.")
             return None
-    except:
-        print("Error checking file")
-    try:
-        # Send ok to receive file content
-        s.sendall(b"1")
-        # Enter loop to receive file
-        output_file = open(file_name, "wb")
-        bytes_received = 0
-        print("\nDownloading...")
-        while bytes_received < file_size:
-            # Again, file broken into chunks defined by the BUFFER_SIZE variable
-            l = s.recv(BUFFER_SIZE)
-            output_file.write(l)
-            bytes_received += BUFFER_SIZE
-        output_file.close()
-        print("Successfully downloaded {}".format(file_name))
-        # Tell the server that the client is ready to receive the download performance details
-        s.sendall(b"1")
-        # Get performance details
-        time_elapsed = struct.unpack("f", s.recv(4))[0]
-        print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
-    except:
-        print("Error downloading file")
-        return None
+        try:
+            # Wait for server ok, then make sure the file exists
+            data_request.recv(BUFFER_SIZE)
+            # Send file name length, then name
+            data_request.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_request.sendall(file_name.encode())
+            # Get file size (if exists)
+            file_size = struct.unpack("i", data_request.recv(4))[0]
+            if file_size == -1:
+                # If file size is -1, the file does not exist
+                print("File does not exist. Make sure the name was entered correctly")
+                return None
+        except:
+            print("Error checking file")
+        try:
+            # Send ok to receive file content
+            data_request.sendall(b"1")
+            # Enter loop to receive file
+            output_file = open(file_name, "wb")
+            bytes_received = 0
+            print("\nDownloading...")
+            while bytes_received < file_size:
+                # Again, file broken into chunks defined by the BUFFER_SIZE variable
+                l = data_request.recv(BUFFER_SIZE)
+                output_file.write(l)
+                bytes_received += BUFFER_SIZE
+            output_file.close()
+            print("Successfully downloaded {}".format(file_name))
+            # Tell the server that the client is ready to receive the download performance details
+            data_request.sendall(b"1")
+            # Get performance details
+            time_elapsed = struct.unpack("f", data_request.recv(4))[0]
+            print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
+        except:
+            print("Error downloading file")
+            return None
     return None
 
 def delf(file_name):

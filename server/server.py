@@ -12,22 +12,27 @@ TCP_PORT = 1456  # Just a random choice
 BUFFER_SIZE = 1024  # Standard size
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((TCP_IP, TCP_PORT))
-s.listen(1)
+s.listen()
 conn, addr = s.accept()
 
 print("\nConnected to by address: {}".format(addr))
 
 
 def upld():
+    print("hiiiii1")
+    conn.listen()
+    print("hiiiii2")
+    data_socket, addr = conn.accept()
+    print("hiiiii3")
     # Send message once the server is ready to receive file details
-    conn.sendall(b"1")
+    data_socket.sendall(b"1")
     # Receive file name length, then file name
-    file_name_size = struct.unpack("h", conn.recv(2))[0]
-    file_name = conn.recv(file_name_size).decode()
+    file_name_size = struct.unpack("h", data_socket.recv(2))[0]
+    file_name = data_socket.recv(file_name_size).decode()
     # Send message to let the client know the server is ready for document content
-    conn.sendall(b"1")
+    data_socket.sendall(b"1")
     # Receive file size
-    file_size = struct.unpack("i", conn.recv(4))[0]
+    file_size = struct.unpack("i", data_socket.recv(4))[0]
     # Initialize and enter a loop to receive file content
     start_time = time.time()
     output_file = open(file_name, "wb")
@@ -35,15 +40,15 @@ def upld():
     bytes_received = 0
     print("\nReceiving...")
     while bytes_received < file_size:
-        l = conn.recv(BUFFER_SIZE)
+        l = data_socket.recv(BUFFER_SIZE)
         output_file.write(l)
         bytes_received += BUFFER_SIZE
     output_file.close()
     print("\nReceived file: {}".format(file_name))
     # save_history("\nReceived file: {}".format(file_name))
     # Send upload performance details
-    conn.sendall(struct.pack("f", time.time() - start_time))
-    conn.sendall(struct.pack("i", file_size))
+    data_socket.sendall(struct.pack("f", time.time() - start_time))
+    data_socket.sendall(struct.pack("i", file_size))
     return None
 
 
@@ -86,21 +91,23 @@ def list_files():
 
 
 def dwld():
-    conn.sendall(b"1")
-    file_name_length = struct.unpack("h", conn.recv(2))[0]
+    conn.listen()
+    data_socket, addr = conn.accept()
+    data_socket.sendall(b"1")
+    file_name_length = struct.unpack("h", data_socket.recv(2))[0]
     print(file_name_length)
-    file_name = conn.recv(file_name_length).decode()
+    file_name = data_socket.recv(file_name_length).decode()
     print(file_name)
     if os.path.isfile(file_name):
         # Then the file exists, and send file size
-        conn.sendall(struct.pack("i", os.path.getsize(file_name)))
+        data_socket.sendall(struct.pack("i", os.path.getsize(file_name)))
     else:
         # Then the file doesn't exist, and send an error code
         print("File name not valid")
-        conn.sendall(struct.pack("i", -1))
+        data_socket.sendall(struct.pack("i", -1))
         return None
     # Wait for ok to send the file
-    conn.recv(BUFFER_SIZE)
+    data_socket.recv(BUFFER_SIZE)
     # Enter a loop to send the file
     start_time = time.time()
     print("Sending file...")
@@ -108,12 +115,12 @@ def dwld():
     # Again, break into chunks defined by BUFFER_SIZE
     l = content.read(BUFFER_SIZE)
     while l:
-        conn.sendall(l)
+        data_socket.sendall(l)
         l = content.read(BUFFER_SIZE)
     content.close()
     # Get client go-ahead, then send download details
-    conn.recv(BUFFER_SIZE)
-    conn.sendall(struct.pack("f", time.time() - start_time))
+    data_socket.recv(BUFFER_SIZE)
+    data_socket.sendall(struct.pack("f", time.time() - start_time))
     return None
 
 
