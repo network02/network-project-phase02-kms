@@ -4,6 +4,7 @@ import time
 import os
 import struct
 import random
+import json
 from threading import Thread
 
 class Client(Thread):
@@ -14,6 +15,11 @@ class Client(Thread):
 
     def __init__(self, conn) -> None:
         self.conn = conn
+        self.exist = False
+        self.authenticated = False
+        self.username = None
+        self.password = None
+
         super().__init__()
 
     def run(self):
@@ -24,31 +30,97 @@ class Client(Thread):
             print("\nReceived instruction: {}".format(data))
             # save_history(data)
             # Check the command and respond correctly
-            if data == "STOR":
-                self.upld()
-            elif data == "LIST":
-                self.list_files()
-            elif data == "RETR":
-                self.dwld()
-            elif data == "DELE":
-                self.delf()
-            elif data == "MKD":
-                self.make_directory()
-            elif data == "RMD":
-                self.remove_directory()
-            elif data == "PWD":
-                self.get_path_directory()
-            elif data == "CWD":
-                self.change_current_directory()
-            elif data == "CDUP":
-                self.noghte_noghte_directory()
-            elif data == "QUIT":
-                self.quit_program()
-                break
+            if data == "USER":
+                self.check_user()
+            elif data == "PASS":
+                self.check_password()
+            elif self.authenticated:
+                if data == "STOR":
+                    self.upld()
+                elif data == "LIST":
+                    self.list_files()
+                elif data == "RETR":
+                    self.dwld()
+                elif data == "DELE":
+                    self.delf()
+                elif data == "MKD":
+                    self.make_directory()
+                elif data == "RMD":
+                    self.remove_directory()
+                elif data == "PWD":
+                    self.get_path_directory()
+                elif data == "CWD":
+                    self.change_current_directory()
+                elif data == "CDUP":
+                    self.noghte_noghte_directory()
+                elif data == "QUIT":
+                    self.quit_program()
+                    break
+                else:
+                    pass
             else:
                 pass
             # Reset the data to loop
             data = None
+
+    def check_user(self):
+        self.authenticated = False
+        self.exist = False
+        self.username = None
+        self.password = None
+        username = self.conn.recv(Client.BUFFER_SIZE).decode()
+        self.conn.sendall(b"1")
+
+        self.username_exist(username)
+        if self.exist:
+            self.conn.sendall(b"OK, Enter PASS command to log in.")
+        else:
+            self.conn.sendall(b"User created, Enter PASS command to log in.")
+
+    def check_password(self):
+        password = self.conn.recv(Client.BUFFER_SIZE).decode()
+
+        if self.exist:
+            self.user_authentication(password)
+
+            if self.authenticated:
+                self.conn.sendall(b"OK, You are logged In.")
+            else:
+                self.conn.sendall(b"BORO KHONATON!")
+        else:
+            self.user_create(password)
+            self.conn.sendall(b"User created with new password")
+
+    def username_exist(self, username):
+        self.username = username
+        with open("data.json", "r") as user_file:
+            print("file opened:exist")
+            for line in user_file:
+                print("searching...")
+                user = json.loads(line)
+                if user['username'] == username:
+                    self.exist = True
+                    return True
+        return False
+
+    def user_authentication(self, password):
+        with open("data.json", "r") as user_file:
+            print("file opened:auth")
+            for line in user_file:
+                print("searching...")
+                user = json.loads(line)
+                if user['password'] == password:
+                    self.authenticated = True
+                    self.password = password
+                    return True
+        return False
+
+    def user_create(self, password):
+        self.password = password
+        user_dict = {"username": self.username, "password": self.password}
+        with open("data.json", "a") as user_file:
+            json.dump(user_dict, user_file)
+            user_file.write("\n")
 
     def upld(self):
         self.conn.sendall(str(Client.TCP_DATA_PORT).encode())

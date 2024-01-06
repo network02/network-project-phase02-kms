@@ -18,6 +18,35 @@ def connect():
     except:
         print("Connection unsuccessful. Make sure the server is online.")
 
+
+def user(username: str):
+    try:
+        s.sendall(b"USER")
+    except Exception as e:
+        print("Couldn't make server request. Make sure a connection has been established.")
+        print(f"{e}, {type(e)}")
+        return None
+    
+    s.sendall(f"{username}".encode())
+    s.recv(BUFFER_SIZE)
+
+    message = s.recv(BUFFER_SIZE).decode()
+    print(message)
+
+
+def password(password: str):
+    try:
+        s.sendall(b"PASS")
+    except Exception as e:
+        print("Couldn't make server request. Make sure a connection has been established.")
+        print(f"{e}, {type(e)}")
+        return None
+
+    s.sendall(f"{password}".encode())
+    message = s.recv(BUFFER_SIZE).decode()
+    print(message)
+
+
 def upld(file_name):
     try:
         s.sendall(b"STOR")
@@ -386,6 +415,10 @@ while True:
     prompt = input("\nEnter a command: ").split()
     if prompt[0].upper() == "CONN":
         connect()
+    elif prompt[0].upper() == "USER":
+        user(prompt[1])
+    elif prompt[0].upper() == "PASS":
+        password(prompt[1])
     elif prompt[0].upper() == "STOR":
         upld(prompt[1])
     elif prompt[0].upper() == "LIST":
