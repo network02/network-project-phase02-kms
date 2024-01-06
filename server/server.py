@@ -87,41 +87,57 @@ class Client(Thread):
         return None
 
     def list_files(self):
-        print("Listing files...")
-        # Get a list of files in the directory
-        print(os.getcwd())
-        listing = os.listdir(os.getcwd())
-        print(listing)
         
-        # Send over the number of files so the client knows what to expect (and avoid some errors)
-        self.conn.sendall(struct.pack("i", len(listing)))
-        print("After sending the number of files")
-        total_directory_size = 0
-        # Send over the file names and sizes while totaling the directory size
-        for i in listing:
-            # File name size
-            #print("file name size sending")
-            self.conn.sendall(struct.pack("i", sys.getsizeof(i)))
+        path_name_lenght = struct.unpack("h", self.conn.recv(2))[0]
+        self.conn.sendall(b"1")
+        path_name = self.conn.recv(path_name_lenght).decode()
+        self.conn.sendall(b"1")
+        if os.path.isdir(path_name):
+            listing = os.listdir(path_name)
+            print(listing)
+            # Send over the number of files so the client knows what to expect (and avoid some errors)
+            self.conn.sendall(struct.pack("i", len(listing)))
+            print("After sending the number of files")
+            total_directory_size = 0
+            # Send over the file names and sizes while totaling the directory size
+            for i in listing:
+                print(i)
+                # File name size
+                #print("file name size sending")
+                self.conn.sendall(struct.pack("i", sys.getsizeof(i)))
+                self.conn.recv(Client.BUFFER_SIZE)
+                # File name
+                #print("file name sending")
+                #print(i.encode())
+                self.conn.sendall(i.encode())
+                self.conn.recv(Client.BUFFER_SIZE)
+                # File content size
+                #print("file content size")
+                self.conn.sendall(struct.pack("i", os.path.getsize(i)))
+                self.conn.recv(Client.BUFFER_SIZE)
+                total_directory_size += os.path.getsize(i)
+                # Make sure that the client and server are synchronized
+                self.conn.recv(Client.BUFFER_SIZE)
+                #print("synced")
+            # Sum of file sizes in the directory
+            self.conn.sendall(struct.pack("i", total_directory_size))
+            # Final check
             self.conn.recv(Client.BUFFER_SIZE)
-            # File name
-            #print("file name sending")
-            #print(i.encode())
-            self.conn.sendall(i.encode())
-            self.conn.recv(Client.BUFFER_SIZE)
-            # File content size
-            #print("file content size")
-            self.conn.sendall(struct.pack("i", os.path.getsize(i)))
-            self.conn.recv(Client.BUFFER_SIZE)
-            total_directory_size += os.path.getsize(i)
-            # Make sure that the client and server are synchronized
-            self.conn.recv(Client.BUFFER_SIZE)
-            #print("synced")
-        # Sum of file sizes in the directory
-        self.conn.sendall(struct.pack("i", total_directory_size))
-        # Final check
-        self.conn.recv(Client.BUFFER_SIZE)
-        print("Successfully sent file listing")
-        return None 
+            print("Successfully sent file listing")
+            return None 
+        elif os.path.isfile(path_name):
+            with open(path_name, "r") as file:
+                self.conn.sendall(struct.pack("i", os.path.getsize(path_name)))
+                self.conn.recv(Client.BUFFER_SIZE)
+                l = file.read(self.BUFFER_SIZE)
+                print("\nSending...")
+                while l:
+                    self.conn.sendall(l.encode())
+                    print("...")
+                    l = file.read(self.BUFFER_SIZE)
+        
+
+            
 
     def dwld(self):
         self.conn.sendall(str(Client.TCP_DATA_PORT).encode())
