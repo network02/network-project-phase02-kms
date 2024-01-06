@@ -114,7 +114,7 @@ def sleeep():
     s.recv(1024)
 
 
-def list_files():
+def list_files(path_name):
     # List the files available on the file server
     # Called list_files(), not list() (as in the format of the others) to avoid the standard python function list()
     print("Requesting files...\n")
@@ -125,82 +125,123 @@ def list_files():
         print("Couldn't make server request. Make sure a connection has been established.")
         return None
     try:
-        number_of_files = struct.unpack("i", s.recv(4))[0]
-        for i in range(int(number_of_files)):
-            # Get the file name size first to slightly lessen amount transferred over socket
-            file_name_size = struct.unpack("i", s.recv(4))[0]
-            s.sendall(b"1")
-            #print(file_name_size)
-            file_name = s.recv(file_name_size).decode()
-            s.sendall(b"1")
-            #print(file_name)
-            # Also get the file size for each item in the server
-            file_size = struct.unpack("i", s.recv(4))[0]
-            s.sendall(b"1")
-            #print(file_size)
-            print("\t{} - {}b".format(file_name, file_size))
-            # Make sure that the client and server are synchronized
-            s.sendall(b"1")
-            #print("next")
-        # Get the total size of the directory
-        total_directory_size = struct.unpack("i", s.recv(4))[0]
-        print("Total directory size: {}b".format(total_directory_size))
-    except:
-        print("Couldn't retrieve listing")
+        # Send path name 
+        s.sendall(struct.pack("h", sys.getsizeof(path_name)))
+        s.recv(BUFFER_SIZE)
+        s.sendall(path_name.encode())
+        s.recv(BUFFER_SIZE)
+    except Exception as e:
+        print(f"{e}, {type(e)}")
         return None
-    try:
-        # Final check
+    if os.path.isdir(path_name):    
+        try:
+            number_of_files = struct.unpack("i", s.recv(4))[0]
+            for i in range(int(number_of_files)):
+                # Get the file name size first to slightly lessen amount transferred over socket
+                file_name_size = struct.unpack("i", s.recv(4))[0]
+                s.sendall(b"1")
+                #print(file_name_size)
+                file_name = s.recv(file_name_size).decode()
+                s.sendall(b"1")
+                #print(file_name)
+                # Also get the file size for each item in the server
+                file_size = struct.unpack("i", s.recv(BUFFER_SIZE))[0]
+                s.sendall(b"1")
+                #print(file_size)
+                print("\t{} - {}b".format(file_name, file_size))
+                # Make sure that the client and server are synchronized
+                s.sendall(b"1")
+                #print("next")
+            # Get the total size of the directory
+            total_directory_size = struct.unpack("i", s.recv(4))[0]
+            print("Total directory size: {}b".format(total_directory_size))
+        except Exception as e:
+            print(f"{e}, {type(e)}")
+            return None
+        try:
+            # Final check
+            s.sendall(b"1")
+            return None
+        except:
+            print("Couldn't get final server confirmation")
+            return None
+    elif os.path.isfile(path_name):
+        file_size = struct.unpack("i", s.recv(BUFFER_SIZE))[0]
         s.sendall(b"1")
-        return None
-    except:
-        print("Couldn't get final server confirmation")
-        return None
+        bytes_received = 0
+        content = ""
+        print("\nReceiving...")
+        while bytes_received < file_size:
+            l = s.recv(BUFFER_SIZE).decode()
+            content += l
+            bytes_received += BUFFER_SIZE
+        print(content)
+
 
 def dwld(file_name):
-    # Download given file
-    print("Downloading file: {}".format(file_name))
     try:
         # Send server request
         s.sendall(b"RETR")
     except:
         print("Couldn't make server request. Make sure a connection has been established.")
         return None
-    try:
-        # Wait for server ok, then make sure the file exists
-        s.recv(BUFFER_SIZE)
-        # Send file name length, then name
-        s.sendall(struct.pack("h", sys.getsizeof(file_name)))
-        s.sendall(file_name.encode())
-        # Get file size (if exists)
-        file_size = struct.unpack("i", s.recv(4))[0]
-        if file_size == -1:
-            # If file size is -1, the file does not exist
-            print("File does not exist. Make sure the name was entered correctly")
+    
+    data_port = int(s.recv(BUFFER_SIZE).decode())
+    s.sendall(b"1")
+
+    s.recv(BUFFER_SIZE)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
+        try:
+            data_socket.connect((TCP_IP, data_port))
+            print("Connection successful!")
+        except Exception as e:
+            print(f"{e}, {type(e)}")
             return None
-    except:
-        print("Error checking file")
-    try:
-        # Send ok to receive file content
-        s.sendall(b"1")
-        # Enter loop to receive file
-        output_file = open(file_name, "wb")
-        bytes_received = 0
-        print("\nDownloading...")
-        while bytes_received < file_size:
-            # Again, file broken into chunks defined by the BUFFER_SIZE variable
-            l = s.recv(BUFFER_SIZE)
-            output_file.write(l)
-            bytes_received += BUFFER_SIZE
-        output_file.close()
-        print("Successfully downloaded {}".format(file_name))
-        # Tell the server that the client is ready to receive the download performance details
-        s.sendall(b"1")
-        # Get performance details
-        time_elapsed = struct.unpack("f", s.recv(4))[0]
-        print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
-    except:
-        print("Error downloading file")
-        return None
+        
+        # Download given file
+        print("Downloading file: {}".format(file_name))
+        
+        try:
+            # Wait for server ok, then make sure the file exists
+            data_socket.recv(BUFFER_SIZE)
+            print("haha")
+            # Send file name length, then name
+            data_socket.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_socket.sendall(file_name.encode())
+            # Get file size (if exists)
+            file_size = struct.unpack("i", data_socket.recv(4))[0]
+            if file_size == -1:
+                # If file size is -1, the file does not exist
+                print("File does not exist. Make sure the name was entered correctly")
+                return None
+        except Exception as e:
+                print("Error checking file")
+                print(f"{e}, {type(e)}")
+                return None
+        try:
+            # Send ok to receive file content
+            data_socket.sendall(b"1")
+            # Enter loop to receive file
+            output_file = open(file_name, "wb")
+            bytes_received = 0
+            print("\nDownloading...")
+            while bytes_received < file_size:
+                # Again, file broken into chunks defined by the BUFFER_SIZE variable
+                l = data_socket.recv(BUFFER_SIZE)
+                output_file.write(l)
+                bytes_received += BUFFER_SIZE
+            output_file.close()
+            print("Successfully downloaded {}".format(file_name))
+            # Tell the server that the client is ready to receive the download performance details
+            data_socket.sendall(b"1")
+            # Get performance details
+            time_elapsed = struct.unpack("f", s.recv(4))[0]
+            print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
+        except Exception as e:
+            print(f"{e}, {type(e)}")
+            print("Error downloading file")
+            return None
     return None
 
 def delf(file_name):
@@ -400,7 +441,7 @@ print("""\n\nWelcome to the FTP client.
       Call one of the following functions:
       CONN               : Connect to server
       STOR file_path     : Upload file
-      LIST               : List files
+      LIST path_name              : List files
       RETR file_path     : Download file
       DELE file_path     : Delete file
       MKD directory_name : Create directory
@@ -422,7 +463,7 @@ while True:
     elif prompt[0].upper() == "STOR":
         upld(prompt[1])
     elif prompt[0].upper() == "LIST":
-        list_files()
+        list_files(prompt[1])
     elif prompt[0].upper() == "RETR":
         dwld(prompt[1])
     elif prompt[0].upper() == "DELE":
