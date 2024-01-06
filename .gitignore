@@ -1,3 +1,6 @@
 .vscode/
 .venv/
 .idea/
+libftp.py
+server/*
+!server/server.py

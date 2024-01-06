@@ -19,49 +19,71 @@ def connect():
         print("Connection unsuccessful. Make sure the server is online.")
 
 def upld(file_name):
-    # Upload a file
-    print("\nUploading file: {}...".format(file_name))
     try:
-        # Check if the file exists
-        content = open(file_name, "rb")
-    except:
-        print("Couldn't open file. Make sure the file name was entered correctly.")
-        return None
-    try:
-        # Make upload request
         s.sendall(b"STOR")
-    except:
+    except Exception as e:
         print("Couldn't make server request. Make sure a connection has been established.")
-        return None 
-    try:
-        # Wait for server acknowledgement then send file details
-        # Wait for server ok
-        s.recv(BUFFER_SIZE)
-        # Send file name size and file name
-        s.sendall(struct.pack("h", sys.getsizeof(file_name)))
-        s.sendall(file_name.encode())
-        # Wait for server ok then send file size
-        s.recv(BUFFER_SIZE)
-        s.sendall(struct.pack("i", os.path.getsize(file_name)))
-    except:
-        print("Error sending file details")
-    try:
-        # Send the file in chunks defined by BUFFER_SIZE
-        # Doing it this way allows for unlimited potential file sizes to be sent
-        l = content.read(BUFFER_SIZE)
-        print("\nSending...")
-        while l:
-            s.sendall(l)
-            l = content.read(BUFFER_SIZE)
-        content.close()
-        # Get upload performance details
-        upload_time = struct.unpack("f", s.recv(4))[0]
-        upload_size = struct.unpack("i", s.recv(4))[0]
-        print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
-    except:
-        print("Error sending file")
+        print(f"{e}, {type(e)}")
         return None
+        
+    data_port = int(s.recv(BUFFER_SIZE).decode())
+    s.sendall(b"1")
+
+    s.recv(BUFFER_SIZE)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
+        try:
+            data_socket.connect((TCP_IP, data_port))
+            print("Connection successful!")
+        except Exception as e:
+            print(f"{e}, {type(e)}")
+            return None
+
+        # Upload a file
+        print("\nUploading file: {}...".format(file_name))
+        
+        try:
+            content = open(file_name, "rb")
+        except Exception as e:
+            print("Couldn't open file. Make sure the file name was entered correctly.")
+            print(f"{e}, {type(e)}")
+            return None
+        
+        try:
+            # Wait for server acknowledgement then send file details
+            # Wait for server ok
+            data_socket.recv(BUFFER_SIZE)
+            # Send file name size and file name
+            data_socket.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_socket.sendall(file_name.encode())
+            # Wait for server ok then send file size
+            data_socket.recv(BUFFER_SIZE)
+            data_socket.sendall(struct.pack("i", os.path.getsize(file_name)))
+        except:
+            print("Error sending file details")
+        try:
+            # Send the file in chunks defined by BUFFER_SIZE
+            # Doing it this way allows for unlimited potential file sizes to be sent
+            l = content.read(BUFFER_SIZE)
+            print("\nSending...")
+            while l:
+                data_socket.sendall(l)
+                print("...")
+                l = content.read(BUFFER_SIZE)
+            content.close()
+            # Get upload performance details
+            upload_time = struct.unpack("f", data_socket.recv(4))[0]
+            upload_size = struct.unpack("i", data_socket.recv(4))[0]
+            print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
+        except:
+            print("Error sending file")
+            return None
     return None
+
+def sleeep():
+    s.sendall(b"SLEEP")
+    s.recv(1024)
+
 
 def list_files():
     # List the files available on the file server
@@ -74,9 +96,7 @@ def list_files():
         print("Couldn't make server request. Make sure a connection has been established.")
         return None
     try:
-        # First get the number of files in the directory
         number_of_files = struct.unpack("i", s.recv(4))[0]
-        # Then enter into a loop to receive details of each, one by one
         for i in range(int(number_of_files)):
             # Get the file name size first to slightly lessen amount transferred over socket
             file_name_size = struct.unpack("i", s.recv(4))[0]
@@ -159,7 +179,7 @@ def delf(file_name):
     print("Deleting file: {}...".format(file_name))
     try:
         # Send request, then wait for go-ahead
-        s.sendall(b"DELF")
+        s.sendall(b"DELE")
         s.recv(BUFFER_SIZE)
     except:
         print("Couldn't connect to the server. Make sure a connection has been established.")
@@ -384,6 +404,8 @@ while True:
         change_current_directory(prompt[1])
     elif prompt[0].upper() == "CDUP":
         noghte_noghte_directory()
+    elif prompt[0].upper() == "SLEEP":
+        sleeep()
     elif prompt[0].upper() == "QUIT":
         quit_program()
         break

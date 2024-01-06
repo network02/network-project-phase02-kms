@@ -3,17 +3,18 @@ import sys
 import time
 import os
 import struct
+import random
 from threading import Thread
 
 class Client(Thread):
     TCP_IP = "127.0.0.1"
     TCP_PORT = 1456
+    TCP_DATA_PORT = random.randint(4000, 5000)
     BUFFER_SIZE = 1024
 
     def __init__(self, conn) -> None:
         self.conn = conn
         super().__init__()
-
 
     def run(self):
         while True:
@@ -43,42 +44,47 @@ class Client(Thread):
                 self.noghte_noghte_directory()
             elif data == "QUIT":
                 self.quit_program()
-                self.join()
                 break
             else:
                 pass
             # Reset the data to loop
             data = None
 
-
     def upld(self):
-        # Send message once the server is ready to receive file details
-        self.conn.sendall(b"1")
-        # Receive file name length, then file name
-        file_name_size = struct.unpack("h", self.conn.recv(2))[0]
-        file_name = self.conn.recv(file_name_size).decode()
-        # Send message to let the client know the server is ready for document content
-        self.conn.sendall(b"1")
-        # Receive file size
-        file_size = struct.unpack("i", self.conn.recv(4))[0]
-        # Initialize and enter a loop to receive file content
-        start_time = time.time()
-        output_file = open(file_name, "wb")
-        # This keeps track of how many bytes we have received, so we know when to stop the loop
-        bytes_received = 0
-        print("\nReceiving...")
-        while bytes_received < file_size:
-            l = self.conn.recv(Client.BUFFER_SIZE)
-            output_file.write(l)
-            bytes_received += Client.BUFFER_SIZE
-        output_file.close()
-        print("\nReceived file: {}".format(file_name))
-        # save_history("\nReceived file: {}".format(file_name))
-        # Send upload performance details
-        self.conn.sendall(struct.pack("f", time.time() - start_time))
-        self.conn.sendall(struct.pack("i", file_size))
-        return None
+        self.conn.sendall(str(Client.TCP_DATA_PORT).encode())
+        self.conn.recv(Client.BUFFER_SIZE)
 
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
+            data_socket.bind((Client.TCP_IP, Client.TCP_DATA_PORT))
+            data_socket.listen()
+            self.conn.sendall(b"1")
+            client_data_socket, client_data_address = data_socket.accept()
+            print("\nConnected DATA to by address: {}".format(client_data_address))
+            
+            client_data_socket.sendall(b"1")
+            
+            file_name_size = struct.unpack("h", client_data_socket.recv(2))[0]
+            file_name = client_data_socket.recv(file_name_size).decode()
+            
+            client_data_socket.sendall(b"1")
+            
+            file_size = struct.unpack("i", client_data_socket.recv(4))[0]
+            
+            start_time = time.time()
+            output_file = open(file_name, "wb")
+
+            bytes_received = 0
+            print("\nReceiving...")
+            while bytes_received < file_size:
+                l = client_data_socket.recv(Client.BUFFER_SIZE)
+                output_file.write(l)
+                bytes_received += Client.BUFFER_SIZE
+            output_file.close()
+            print("\nReceived file: {}".format(file_name))
+
+            client_data_socket.sendall(struct.pack("f", time.time() - start_time))
+            client_data_socket.sendall(struct.pack("i", file_size))
+        return None
 
     def list_files(self):
         print("Listing files...")
@@ -117,7 +123,6 @@ class Client(Thread):
         print("Successfully sent file listing")
         return None 
 
-
     def dwld(self):
         self.conn.sendall(b"1")
         file_name_length = struct.unpack("h", self.conn.recv(2))[0]
@@ -149,7 +154,6 @@ class Client(Thread):
         self.conn.sendall(struct.pack("f", time.time() - start_time))
         return None
 
-
     def delf(self):
         # Send go-ahead
         self.conn.sendall(b"1")
@@ -180,7 +184,6 @@ class Client(Thread):
             print("Delete abandoned by the client!")
             return None
 
-
     def make_directory(self):
         # Send go-ahead
         self.conn.sendall(b"1")
@@ -198,7 +201,6 @@ class Client(Thread):
             print(error)
             self.conn.sendall(b"0")
         return None
-
 
     def remove_directory(self):
         # Send go-ahead
@@ -218,7 +220,6 @@ class Client(Thread):
             self.conn.sendall(b"0")
         return None
 
-
     def get_path_directory(self):
         # Send go-ahead
         self.conn.sendall(b"1")
@@ -237,7 +238,6 @@ class Client(Thread):
             print("couldn't send path.")
         return None
 
-
     def change_current_directory(self):
         # Send go-ahead
         self.conn.sendall(b"1")
@@ -254,7 +254,6 @@ class Client(Thread):
             self.conn.sendall(b"0")
         return None
 
-
     def noghte_noghte_directory(self):
             # Send go-ahead
             self.conn.sendall(b"1")
@@ -267,7 +266,6 @@ class Client(Thread):
                 print(error)
                 self.conn.sendall(b"0")
             return None
-
 
     def quit_program(self):
         # Send quit confirmation
@@ -289,4 +287,5 @@ if __name__ == "__main__":
                 new_client.start()
         except Exception as e:
             print(e)
-         
+        finally:
+            s.close()
