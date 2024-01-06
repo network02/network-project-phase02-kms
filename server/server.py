@@ -124,34 +124,45 @@ class Client(Thread):
         return None 
 
     def dwld(self):
-        self.conn.sendall(b"1")
-        file_name_length = struct.unpack("h", self.conn.recv(2))[0]
-        print(file_name_length)
-        file_name = self.conn.recv(file_name_length).decode()
-        print(file_name)
-        if os.path.isfile(file_name):
-            # Then the file exists, and send file size
-            self.conn.sendall(struct.pack("i", os.path.getsize(file_name)))
-        else:
-            # Then the file doesn't exist, and send an error code
-            print("File name not valid")
-            self.conn.sendall(struct.pack("i", -1))
-            return None
-        # Wait for ok to send the file
+        self.conn.sendall(str(Client.TCP_DATA_PORT).encode())
         self.conn.recv(Client.BUFFER_SIZE)
-        # Enter a loop to send the file
-        start_time = time.time()
-        print("Sending file...")
-        content = open(file_name, "rb")
-        # Again, break into chunks defined by Client.BUFFER_SIZE
-        l = content.read(Client.BUFFER_SIZE)
-        while l:
-            self.conn.sendall(l)
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
+            data_socket.bind((Client.TCP_IP, Client.TCP_DATA_PORT))
+            data_socket.listen()
+            self.conn.sendall(b"1")
+            client_data_socket, client_data_address = data_socket.accept()
+            print("\nConnected DATA to by address: {}".format(client_data_address))
+        
+            client_data_socket.sendall(b"1")
+            print("some")
+            file_name_length = struct.unpack("h", client_data_socket.recv(2))[0]
+            print(file_name_length)
+            file_name = client_data_socket.recv(file_name_length).decode()
+            print(file_name)
+            if os.path.isfile(file_name):
+                # Then the file exists, and send file size
+                client_data_socket.sendall(struct.pack("i", os.path.getsize(file_name)))
+            else:
+                # Then the file doesn't exist, and send an error code
+                print("File name not valid")
+                client_data_socket.sendall(struct.pack("i", -1))
+                return None
+            # Wait for ok to send the file
+            client_data_socket.recv(Client.BUFFER_SIZE)
+            # Enter a loop to send the file
+            start_time = time.time()
+            print("Sending file...")
+            content = open(file_name, "rb")
+            # Again, break into chunks defined by Client.BUFFER_SIZE
             l = content.read(Client.BUFFER_SIZE)
-        content.close()
-        # Get client go-ahead, then send download details
-        self.conn.recv(Client.BUFFER_SIZE)
-        self.conn.sendall(struct.pack("f", time.time() - start_time))
+            while l:
+                client_data_socket.sendall(l)
+                l = content.read(Client.BUFFER_SIZE)
+            content.close()
+            # Get client go-ahead, then send download details
+            client_data_socket.recv(Client.BUFFER_SIZE)
+            client_data_socket.sendall(struct.pack("f", time.time() - start_time))
         return None
 
     def delf(self):
