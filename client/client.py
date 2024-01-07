@@ -46,7 +46,7 @@ def password(password: str):
     print(message)
 
 
-def upload(file_name):
+def upload(file_name: str):
     try:
         s.sendall(b"STOR")
     except Exception as e:
@@ -82,11 +82,11 @@ def upload(file_name):
             # Wait for server ok
             data_socket.recv(BUFFER_SIZE)
             # Send file name size and file name
-            data_socket.sendall(sys.getsizeof(file_name).encode())
+            data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.sendall(file_name.encode())
             # Wait for server ok then send file size
             data_socket.recv(BUFFER_SIZE)
-            data_socket.sendall(os.path.getsize(file_name).encode())
+            data_socket.sendall(str(os.path.getsize(file_name)).encode())
         except Exception as e:
             print(f"{e}, {type(e)}")
             print("450 Error sending file details")
@@ -116,7 +116,7 @@ def sleeep():
     s.recv(1024)
 
 
-def list_files(path_name):
+def list_files(path_name: str):
     
     print("Requesting files...\n")
     try:
@@ -127,7 +127,7 @@ def list_files(path_name):
         return None
     
     try: 
-        s.sendall(sys.getsizeof(path_name).encode())
+        s.sendall(str(sys.getsizeof(path_name)).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(path_name.encode())
         s.recv(BUFFER_SIZE)
@@ -178,7 +178,7 @@ def list_files(path_name):
         print(content)
 
 
-def download(file_name):
+def download(file_name: str):
     try:
         s.sendall(b"RETR")
     except Exception as e:
@@ -205,7 +205,7 @@ def download(file_name):
             data_socket.recv(BUFFER_SIZE)
             print("haha")
 
-            data_socket.sendall(sys.getsizeof(file_name).encode())
+            data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.sendall(file_name.encode())
 
             file_size = int(data_socket.recv(4).decode())
@@ -239,7 +239,7 @@ def download(file_name):
             return None
     return None
 
-def delete_file(file_name):
+def delete_file(file_name: str):
     print("Deleting file: {}...".format(file_name))
     
     try:
@@ -251,7 +251,7 @@ def delete_file(file_name):
         return None
     
     try:
-        s.sendall(sys.getsizeof(file_name).encode())
+        s.sendall(str(sys.getsizeof(file_name)).encode())
         s.sendall(file_name.encode())
     except Exception as e:
         print(f"{e}, {type(e)}")
@@ -297,7 +297,7 @@ def delete_file(file_name):
         print("450 Couldn't delete the file")
         return None
 
-def make_directory(directory_name):
+def make_directory(directory_name: str):
     print("Creating Directory: {}...".format(directory_name))
     try:
         
@@ -308,7 +308,7 @@ def make_directory(directory_name):
         return None
     
     try:
-        s.sendall(sys.getsizeof(directory_name).encode())
+        s.sendall(str(sys.getsizeof(directory_name)).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(directory_name.encode())
         s.recv(BUFFER_SIZE)
@@ -324,7 +324,7 @@ def make_directory(directory_name):
     return None
 
 
-def remove_directory(directory_name):
+def remove_directory(directory_name: str):
     print("Removing Directory: {}...".format(directory_name))
     try:
         s.sendall(b"RMD")
@@ -333,7 +333,7 @@ def remove_directory(directory_name):
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
     try:
-        s.sendall(sys.getsizeof(directory_name).encode())
+        s.sendall(str(sys.getsizeof(directory_name)).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(directory_name.encode())
         s.recv(BUFFER_SIZE)
@@ -371,7 +371,7 @@ def get_path_directory():
     return None
 
 
-def change_current_directory(new_path):
+def change_current_directory(new_path: str):
 
     print("Changing Directory: {}...".format(new_path))
     try:
@@ -381,7 +381,7 @@ def change_current_directory(new_path):
         print("421 `Couldn't connect to the server. Make sure a connection has been established.")
         return None
     try:
-        s.sendall(sys.getsizeof(new_path).encode())
+        s.sendall(str(sys.getsizeof(new_path)).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(new_path.encode())
         s.recv(BUFFER_SIZE)

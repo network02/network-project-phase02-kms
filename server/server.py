@@ -349,8 +349,7 @@ class Client(Thread):
         
 
 if __name__ == "__main__":
-        print("""Welcome to the FTP server.
-              To get started, connect a client.""")
+        print("Welcome to the FTP server.\nTo get started, connect a client.")
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((Client.TCP_IP, Client.TCP_PORT))
