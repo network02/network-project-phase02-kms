@@ -282,7 +282,7 @@ class Client(Thread):
         try: 
             os.mkdir(directory_name) 
             self.conn.sendall(b"1")
-        except OSError as error: 
+        except OSError as e: 
             print(f"{e}, {type(e)}")
             self.conn.sendall(b"0")
 
@@ -297,7 +297,7 @@ class Client(Thread):
         try: 
             os.rmdir(directory_name) 
             self.conn.sendall(b"1")
-        except OSError as error: 
+        except OSError as e: 
             print(f"{e}, {type(e)}")
             self.conn.sendall(b"0")
 
