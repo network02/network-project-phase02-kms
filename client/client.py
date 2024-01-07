@@ -139,19 +139,19 @@ def list_files(path_name: str):
         try:
             number_of_files = s.recv(4).decode()
             for i in range(int(number_of_files)):
-                file_name_size = s.recv(4).decode()
+                file_name_size = int(s.recv(4).decode())
                 s.sendall(b"1")
                 file_name = s.recv(file_name_size).decode()
                 s.sendall(b"1")
                 
-                file_size = s.recv(BUFFER_SIZE).decode()
+                file_size = int(s.recv(BUFFER_SIZE).decode())
                 s.sendall(b"1")
                 
                 print("\t{} - {}b".format(file_name, file_size))
                 
                 s.sendall(b"1")
                 
-            total_directory_size = s.recv(4).decode()
+            total_directory_size = int(s.recv(4).decode())
             print("Total directory size: {}b".format(total_directory_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -166,7 +166,7 @@ def list_files(path_name: str):
             return None
         
     elif os.path.isfile(path_name):
-        file_size = s.recv(BUFFER_SIZE).decode()
+        file_size = int(s.recv(BUFFER_SIZE).decode())
         s.sendall(b"1")
         bytes_received = 0
         content = ""
@@ -259,7 +259,7 @@ def delete_file(file_name: str):
         return None
     
     try:
-        file_exists = s.recv(4).decode()
+        file_exists = int(s.recv(4).decode())
         if file_exists == -1:
             print("450 The file does not exist on the server")
             return None
