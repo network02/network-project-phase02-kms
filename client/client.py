@@ -26,6 +26,7 @@ def user(username: str):
         print(f"{e}, {type(e)}")
         return None
     
+    s.recv(BUFFER_SIZE)
     s.sendall(f"{username}".encode())
     s.recv(BUFFER_SIZE)
 
@@ -41,6 +42,7 @@ def password(password: str):
         print(f"{e}, {type(e)}")
         return None
 
+    s.recv(BUFFER_SIZE)
     s.sendall(f"{password}".encode())
     message = s.recv(BUFFER_SIZE).decode()
     print(message)
@@ -78,13 +80,11 @@ def upload(file_name: str):
             return None
         
         try:
-            # Wait for server acknowledgement then send file details
-            # Wait for server ok
             data_socket.recv(BUFFER_SIZE)
-            # Send file name size and file name
+
             data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.sendall(file_name.encode())
-            # Wait for server ok then send file size
+            
             data_socket.recv(BUFFER_SIZE)
             data_socket.sendall(str(os.path.getsize(file_name)).encode())
         except Exception as e:
@@ -92,8 +92,6 @@ def upload(file_name: str):
             print("450 Error sending file details")
             
         try:
-            # Send the file in chunks defined by BUFFER_SIZE
-            # Doing it this way allows for unlimited potential file sizes to be sent
             l = content.read(BUFFER_SIZE)
             print("\nSending...")
             while l:
@@ -101,9 +99,9 @@ def upload(file_name: str):
                 print("...")
                 l = content.read(BUFFER_SIZE)
             content.close()
-            # Get upload performance details
-            upload_time = data_socket.recv(4).decode()
-            upload_size = data_socket.recv(4).decode()
+            
+            upload_time = data_socket.recv(BUFFER_SIZE).decode()
+            upload_size = data_socket.recv(BUFFER_SIZE).decode()
             print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -125,7 +123,7 @@ def list_files(path_name: str):
         print(f"{e}, {type(e)}")
         print("421 Couldn't make server request. Make sure a connection has been established.")
         return None
-    
+    print("hey")
     try: 
         s.sendall(str(sys.getsizeof(path_name)).encode())
         s.recv(BUFFER_SIZE)
@@ -134,24 +132,36 @@ def list_files(path_name: str):
     except Exception as e:
         print(f"{e}, {type(e)}")
         return None
-    
+    print("ta inja kar mikone")
     if os.path.isdir(path_name):    
+        print("boo")
         try:
-            number_of_files = s.recv(4).decode()
-            for i in range(int(number_of_files)):
-                file_name_size = int(s.recv(4).decode())
+            number_of_files = int(s.recv(BUFFER_SIZE).decode())
+            # print(number_of_files)
+            # hi = s.recv(BUFFER_SIZE)
+            # p = int(hi.decode())
+            s.sendall(b"1")
+            # print(p)
+            for i in range(number_of_files):
+                print(i)
+
+
+                file_name_size = int(s.recv(BUFFER_SIZE).decode())
+                print(file_name_size)
                 s.sendall(b"1")
                 file_name = s.recv(file_name_size).decode()
+                print(file_name)
                 s.sendall(b"1")
                 
                 file_size = int(s.recv(BUFFER_SIZE).decode())
+                print(file_size)
                 s.sendall(b"1")
                 
                 print("\t{} - {}b".format(file_name, file_size))
                 
                 s.sendall(b"1")
                 
-            total_directory_size = int(s.recv(4).decode())
+            total_directory_size = s.recv(BUFFER_SIZE).decode()
             print("Total directory size: {}b".format(total_directory_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -208,7 +218,7 @@ def download(file_name: str):
             data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.sendall(file_name.encode())
 
-            file_size = int(data_socket.recv(4).decode())
+            file_size = int(data_socket.recv(BUFFER_SIZE).decode())
             if file_size == -1:
                 print("450 File does not exist. Make sure the name was entered correctly")
                 return None
@@ -231,7 +241,7 @@ def download(file_name: str):
             # client is ready to receive the download performance details
             data_socket.sendall(b"1")
             
-            time_elapsed = s.recv(4).decode()
+            time_elapsed = s.recv(BUFFER_SIZE).decode()
             print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -259,7 +269,7 @@ def delete_file(file_name: str):
         return None
     
     try:
-        file_exists = int(s.recv(4).decode())
+        file_exists = int(s.recv(BUFFER_SIZE).decode())
         if file_exists == -1:
             print("450 The file does not exist on the server")
             return None
@@ -282,7 +292,7 @@ def delete_file(file_name: str):
     try:
         if confirm_delete == "Y" or confirm_delete == "YES":
             s.sendall(b"Y")
-            delete_status = int(s.recv(4).decode())
+            delete_status = int(s.recv(BUFFER_SIZE).decode())
             if delete_status == 1:
                 print("250 OK! File successfully deleted")
                 return None

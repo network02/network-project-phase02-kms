@@ -4,3 +4,4 @@
 libftp.py
 server/*
 !server/server.py
+!server/users.json

@@ -76,6 +76,7 @@ class Client(Thread):
         self.username = None
         self.password = None
 
+        self.conn.sendall(b"1")
         username = self.conn.recv(Client.BUFFER_SIZE).decode()
         self.conn.sendall(b"1")
 
@@ -86,6 +87,7 @@ class Client(Thread):
             self.conn.sendall(b"337 Enter password to create account.")
 
     def check_password(self) -> None:
+        self.conn.sendall(b"1")
         password = self.conn.recv(Client.BUFFER_SIZE).decode()
 
         if self.exist:
@@ -162,25 +164,34 @@ class Client(Thread):
 
     def list_files(self) -> None:
         path_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
-        self.conn.sendall(b"1")
-
+        self.conn.sendall(b"1") 
         path_name = self.conn.recv(path_name_length).decode()
         self.conn.sendall(b"1")
-
+        print(os.path.isdir(path_name))
+        print(os.path.isfile(path_name))
         if os.path.isdir(path_name):
             directories_list = os.listdir(path_name)
-
+            print(directories_list)
             self.conn.sendall(str(len(directories_list)).encode())
 
             total_directory_size = 0
+            # self.conn.sendall("6".encode('utf8'))
+            self.conn.recv(Client.BUFFER_SIZE)
             for directory in directories_list:
-                self.conn.sendall(str(sys.getsizeof(directory)).encode())
+                print(directory)
+
+
+                self.conn.sendall(str(sys.getsizeof(directory)).encode('utf8'))
+                print("file name size sent")
+                print(sys.getsizeof(directory))
                 self.conn.recv(Client.BUFFER_SIZE)
 
                 self.conn.sendall(directory.encode())
+                print("file name sent")
                 self.conn.recv(Client.BUFFER_SIZE)
 
                 self.conn.sendall(str(os.path.getsize(directory)).encode())
+                print("file size sent")
                 self.conn.recv(Client.BUFFER_SIZE)
 
                 total_directory_size += os.path.getsize(directory)
@@ -308,6 +319,7 @@ class Client(Thread):
             cwd = os.getcwd()
             print(cwd)
             self.conn.sendall(str(sys.getsizeof(cwd)).encode())
+            print(sys.getsizeof(cwd))
             self.conn.recv(Client.BUFFER_SIZE)
             self.conn.sendall(cwd.encode())
             self.conn.recv(Client.BUFFER_SIZE)
