@@ -138,12 +138,12 @@ class Client(Thread):
 
             client_data_socket.sendall(b"1")
             
-            file_name_size = client_data_socket.recv(Client.BUFFER_SIZE).decode()
+            file_name_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
             file_name = client_data_socket.recv(file_name_size).decode()
             
             client_data_socket.sendall(b"1")
             
-            file_size = client_data_socket.recv(Client.BUFFER_SIZE).decode()
+            file_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
             
             start_time = time.time()
 
@@ -158,10 +158,10 @@ class Client(Thread):
             print(f"\nReceived file: {file_name}")
 
             client_data_socket.sendall(str(time.time() - start_time).encode())
-            client_data_socket.sendall(file_size.encode())
+            client_data_socket.sendall(str(file_size).encode())
 
     def list_files(self) -> None:
-        path_name_length = self.conn.recv(Client.BUFFER_SIZE).decode()
+        path_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
         self.conn.sendall(b"1")
 
         path_name = self.conn.recv(path_name_length).decode()
@@ -219,7 +219,7 @@ class Client(Thread):
         
             client_data_socket.sendall(b"1")
 
-            file_name_length = client_data_socket.recv(Client.BUFFER_SIZE).decode()
+            file_name_length = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
             file_name = client_data_socket.recv(file_name_length).decode()
 
             if os.path.isfile(file_name):
@@ -248,7 +248,7 @@ class Client(Thread):
     def delete_file(self) -> None:
         self.conn.sendall(b"1")
 
-        file_name_length = self.conn.recv(Client.BUFFER_SIZE).decode()
+        file_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
         file_name = self.conn.recv(file_name_length).decode()
 
         # Check if file exist
@@ -273,7 +273,7 @@ class Client(Thread):
 
     def make_directory(self) -> None:
         self.conn.sendall(b"1")
-        directory_name_length = self.conn.recv(Client.BUFFER_SIZE).decode()
+        directory_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
 
         self.conn.sendall(b"1")
         directory_name = self.conn.recv(directory_name_length).decode()
@@ -288,7 +288,7 @@ class Client(Thread):
 
     def remove_directory(self) -> None:
         self.conn.sendall(b"1")
-        directory_name_length = self.conn.recv(Client.BUFFER_SIZE).decode()
+        directory_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
 
         self.conn.sendall(b"1")
         directory_name = self.conn.recv(directory_name_length).decode()
@@ -320,7 +320,7 @@ class Client(Thread):
     def change_current_directory(self):
         self.conn.sendall(b"1")
 
-        new_path_length = self.conn.recv(Client.BUFFER_SIZE).decode()
+        new_path_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
         self.conn.sendall(b"1")
 
         new_path = self.conn.recv(new_path_length).decode()
