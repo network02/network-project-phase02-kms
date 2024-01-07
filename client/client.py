@@ -1,7 +1,6 @@
 import socket
 import sys
 import os
-import struct
 
 # Initialise socket stuff
 TCP_IP = "127.0.0.1"  # Only a local server
@@ -83,11 +82,11 @@ def upld(file_name):
             # Wait for server ok
             data_socket.recv(BUFFER_SIZE)
             # Send file name size and file name
-            data_socket.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_socket.sendall(sys.getsizeof(file_name).encode())
             data_socket.sendall(file_name.encode())
             # Wait for server ok then send file size
             data_socket.recv(BUFFER_SIZE)
-            data_socket.sendall(struct.pack("i", os.path.getsize(file_name)))
+            data_socket.sendall(os.path.getsize(file_name).encode())
         except:
             print("Error sending file details")
         try:
@@ -101,8 +100,8 @@ def upld(file_name):
                 l = content.read(BUFFER_SIZE)
             content.close()
             # Get upload performance details
-            upload_time = struct.unpack("f", data_socket.recv(4))[0]
-            upload_size = struct.unpack("i", data_socket.recv(4))[0]
+            upload_time = data_socket.recv(4).decode()
+            upload_size = data_socket.recv(4).decode()
             print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
         except:
             print("Error sending file")
@@ -126,7 +125,7 @@ def list_files(path_name):
         return None
     try:
         # Send path name 
-        s.sendall(struct.pack("h", sys.getsizeof(path_name)))
+        s.sendall(sys.getsizeof(path_name).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(path_name.encode())
         s.recv(BUFFER_SIZE)
@@ -135,17 +134,17 @@ def list_files(path_name):
         return None
     if os.path.isdir(path_name):    
         try:
-            number_of_files = struct.unpack("i", s.recv(4))[0]
+            number_of_files = s.recv(4).decode()
             for i in range(int(number_of_files)):
                 # Get the file name size first to slightly lessen amount transferred over socket
-                file_name_size = struct.unpack("i", s.recv(4))[0]
+                file_name_size = s.recv(4).decode()
                 s.sendall(b"1")
                 #print(file_name_size)
                 file_name = s.recv(file_name_size).decode()
                 s.sendall(b"1")
                 #print(file_name)
                 # Also get the file size for each item in the server
-                file_size = struct.unpack("i", s.recv(BUFFER_SIZE))[0]
+                file_size = s.recv(BUFFER_SIZE).decode()
                 s.sendall(b"1")
                 #print(file_size)
                 print("\t{} - {}b".format(file_name, file_size))
@@ -153,7 +152,7 @@ def list_files(path_name):
                 s.sendall(b"1")
                 #print("next")
             # Get the total size of the directory
-            total_directory_size = struct.unpack("i", s.recv(4))[0]
+            total_directory_size = s.recv(4).decode()
             print("Total directory size: {}b".format(total_directory_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -166,7 +165,7 @@ def list_files(path_name):
             print("Couldn't get final server confirmation")
             return None
     elif os.path.isfile(path_name):
-        file_size = struct.unpack("i", s.recv(BUFFER_SIZE))[0]
+        file_size = s.recv(BUFFER_SIZE).decode()
         s.sendall(b"1")
         bytes_received = 0
         content = ""
@@ -207,10 +206,10 @@ def dwld(file_name):
             data_socket.recv(BUFFER_SIZE)
             print("haha")
             # Send file name length, then name
-            data_socket.sendall(struct.pack("h", sys.getsizeof(file_name)))
+            data_socket.sendall(sys.getsizeof(file_name).encode())
             data_socket.sendall(file_name.encode())
             # Get file size (if exists)
-            file_size = struct.unpack("i", data_socket.recv(4))[0]
+            file_size = data_socket.recv(4).decode()
             if file_size == -1:
                 # If file size is -1, the file does not exist
                 print("File does not exist. Make sure the name was entered correctly")
@@ -236,7 +235,7 @@ def dwld(file_name):
             # Tell the server that the client is ready to receive the download performance details
             data_socket.sendall(b"1")
             # Get performance details
-            time_elapsed = struct.unpack("f", s.recv(4))[0]
+            time_elapsed = s.recv(4).decode()
             print("Time elapsed: {}s\nFile size: {}b".format(time_elapsed, file_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
@@ -256,14 +255,14 @@ def delf(file_name):
         return None
     try:
         # Send file name length, then file name
-        s.sendall(struct.pack("h", sys.getsizeof(file_name)))
+        s.sendall(sys.getsizeof(file_name).encode())
         s.sendall(file_name.encode())
     except:
         print("Couldn't send file details")
         return None
     try:
         # Get confirmation that file does/doesn't exist
-        file_exists = struct.unpack("i", s.recv(4))[0]
+        file_exists = s.recv(4).decode()
         if file_exists == -1:
             print("The file does not exist on the server")
             return None
@@ -288,7 +287,7 @@ def delf(file_name):
             # User wants to delete the file
             s.sendall(b"Y")
             # Wait for confirmation file has been deleted
-            delete_status = struct.unpack("i", s.recv(4))[0]
+            delete_status = s.recv(4).decode()
             if delete_status == 1:
                 print("File successfully deleted")
                 return None
@@ -316,7 +315,7 @@ def make_directory(directory_name):
         return None
     try:
         # Send directory path name length, then directory path name
-        s.sendall(struct.pack("h", sys.getsizeof(directory_name)))
+        s.sendall(sys.getsizeof(directory_name).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(directory_name.encode())
         s.recv(BUFFER_SIZE)
@@ -344,7 +343,7 @@ def remove_directory(directory_name):
         return None
     try:
         # Send directory path name length, then directory path name
-        s.sendall(struct.pack("h", sys.getsizeof(directory_name)))
+        s.sendall(sys.getsizeof(directory_name).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(directory_name.encode())
         s.recv(BUFFER_SIZE)
@@ -396,7 +395,7 @@ def change_current_directory(new_path):
         return None
     try:
         # Send directory path name length, then directory path name
-        s.sendall(struct.pack("h", sys.getsizeof(new_path)))
+        s.sendall(sys.getsizeof(new_path).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(new_path.encode())
         s.recv(BUFFER_SIZE)
