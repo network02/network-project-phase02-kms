@@ -7,6 +7,16 @@ import random
 import json
 from threading import Thread
 
+
+def load_users_from_file() -> list[dict]:
+    with open("users.json", "r") as user_file:
+        user_list = json.load(user_file)
+    return user_list
+
+
+USER_LIST: list = load_users_from_file()
+
+
 class Client(Thread):
     TCP_IP = "127.0.0.1"
     TCP_PORT = 1456
@@ -87,40 +97,34 @@ class Client(Thread):
                 self.conn.sendall(b"OK, You are logged In.")
             else:
                 self.conn.sendall(b"BORO KHONATON!")
-        else:
+        elif self.username != None:
             self.user_create(password)
             self.conn.sendall(b"User created with new password")
+        else:
+            self.conn.sendall(b"First enter username with USER command.")
 
     def username_exist(self, username):
         self.username = username
-        with open("data.json", "r") as user_file:
-            print("file opened:exist")
-            for line in user_file:
-                print("searching...")
-                user = json.loads(line)
-                if user['username'] == username:
-                    self.exist = True
-                    return True
+        for user in USER_LIST:
+            if user['username'] == username:
+                self.exist = True
+                return True
         return False
 
     def user_authentication(self, password):
-        with open("data.json", "r") as user_file:
-            print("file opened:auth")
-            for line in user_file:
-                print("searching...")
-                user = json.loads(line)
-                if user['password'] == password:
-                    self.authenticated = True
-                    self.password = password
-                    return True
+        for user in USER_LIST:
+            if user['password'] == password:
+                self.authenticated = True
+                self.password = password
+                return True
         return False
 
     def user_create(self, password):
         self.password = password
         user_dict = {"username": self.username, "password": self.password}
-        with open("data.json", "a") as user_file:
-            json.dump(user_dict, user_file)
-            user_file.write("\n")
+        USER_LIST.append(user_dict)
+        with open("users.json", "w") as user_file:
+            json.dump(USER_LIST, user_file)
 
     def upld(self):
         self.conn.sendall(str(Client.TCP_DATA_PORT).encode())
