@@ -452,6 +452,9 @@ print("""\n\nWelcome to the FTP client.
       QUIT               : Exit""")
 
 while True:
+
+    # handle first command has to be user
+
     # Listen for a command
     prompt = input("\nEnter a command: ").split()
     if prompt[0].upper() == "CONN":
