@@ -1,0 +1,1 @@
+{"/server": ["admin"], "/server/private": ["admin"], "/server/Public": ["admin", "arshia", "kimya", "jj", "dkimb"], "/server/Public/this": ["admin"], "/server/Public/arsh": ["admin", "arshia"], "/server/Public/arsh2": ["admin", "arshia", "kimya"], "/server/Public/kimya": ["admin", "dkimb"], "/server/Public/kimya/kimya2": ["admin", "dkimb"]}

@@ -7,7 +7,7 @@ TCP_IP = "127.0.0.1"
 TCP_PORT = 1456  
 BUFFER_SIZE = 1024  
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-LOGGED_IN_STATUS = False
+LOGGED_IN_STATUS = True
 
 def connect():
     
@@ -47,8 +47,8 @@ def password(password: str):
     s.sendall(f"{password}".encode())
     message = s.recv(BUFFER_SIZE).decode()
     print(message)
-    if message == "230 User logged in, proceed." or message == "338 User created.":
-        LOGGED_IN_STATUS = True
+    # if message == "230 User logged in, proceed." or message == "338 User created.":
+    #     LOGGED_IN_STATUS = True
 
 
 def upload(file_name: str):
@@ -362,10 +362,12 @@ def remove_directory(directory_name: str):
         return None
      
     directory_check = int(s.recv(BUFFER_SIZE).decode())
-    if directory_check:
+    if directory_check == 1:
         print("200 OK! directory removed successfully.")
-    else:
+    elif directory_check == 0:
         print("400 couldn't remove the directory.")
+    elif directory_check == -1:
+        print("400 access denied.")
     return None
         
     
@@ -413,10 +415,12 @@ def change_current_directory(new_path: str):
         return None
      
     change_check = int(s.recv(BUFFER_SIZE).decode())
-    if change_check:
+    if change_check == 1:
         print("200 OK!path changed successfully.")
-    else:
+    elif change_check == 0:
         print("400 couldn't change path.")
+    elif change_check == -1:
+        print("400 access denied.")
     return None
 
 def noghte_noghte_directory():
@@ -430,11 +434,33 @@ def noghte_noghte_directory():
     
     s.sendall(b"1")
     change_check = int(s.recv(BUFFER_SIZE).decode())
-    if change_check:
+    if change_check == 1:
         print("200 OK! path changed successfully.")
-    else:
+    elif change_check == 0:
         print("400 couldn't change path.")
+    elif change_check == -1:
+        print("400 access denied.")
     return None
+def access_provide(directory_name, user_name):
+    try:
+        s.sendall(b"PROM")
+        s.recv(BUFFER_SIZE)
+    except:
+        print("421 Couldn't connect to the server. Make sure a connection has been established.")
+        return None
+
+    try: 
+        s.sendall(directory_name.encode())
+        s.recv(BUFFER_SIZE)
+
+        s.sendall(user_name.encode())
+    except:
+        print("450 Couldn't send Directory details")
+        return None
+    
+    message = s.recv(BUFFER_SIZE).decode()
+    print(message)
+
 
 def quit_program():
     s.sendall(b"QUIT")
@@ -494,6 +520,8 @@ while True:
             noghte_noghte_directory()
         elif prompt[0].upper() == "SLEEP":
             sleeep()
+        elif prompt[0].upper() == "PROM":
+            access_provide(prompt[1],prompt[2])
         else:
             print("502 Command not recognized; please try again")
     else:

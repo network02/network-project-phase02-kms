@@ -4,6 +4,7 @@ import time
 import os
 import random
 import json
+
 from threading import Thread
 from typing import Optional
 
@@ -14,7 +15,20 @@ def load_users_from_file() -> list[dict]:
     return user_list
 
 
+def load_permissions_from_file() -> dict:
+    with open("permissions.json", "r") as permission_file:
+        permissions: dict = json.load(permission_file)
+    return permissions
+
+
+def save_permissions() -> None:
+    with open("permissions.json", "w") as permission_file:
+        json.dump(PERMISSION_LIST, permission_file)
+
+
 USER_LIST: list = load_users_from_file()
+PERMISSION_LIST: dict = load_permissions_from_file()
+FIRST_PATH = "/home/arshia2562/Documents/network-project-phase02-kms"
 
 
 class Client(Thread):
@@ -30,7 +44,7 @@ class Client(Thread):
         self.username: Optional[str]  = None
         self.password: Optional[str] = None
         self.TCP_DATA_PORT = random.randint(4000, 5000)
-
+        self.PATH = "/server/Public"
         super().__init__()
 
     def run(self):
@@ -50,6 +64,8 @@ class Client(Thread):
                 # self.conn.sendall(b"1")
                 if data == "STOR":
                     self.upload_file()
+                elif data == "PROM":
+                    self.change_permission()
                 elif data == "LIST":
                     self.list_files()
                 elif data == "RETR":
@@ -128,10 +144,42 @@ class Client(Thread):
         self.password = password
         self.exist = True
         self.authenticated = True
+
         user_dict = {"username": self.username, "password": self.password}
+
         USER_LIST.append(user_dict)
+        PERMISSION_LIST['/server/Public'].append(self.username)
+
         with open("users.json", "w") as user_file:
             json.dump(USER_LIST, user_file)
+
+        save_permissions()
+
+    def change_permission(self) -> None:
+        self.conn.sendall(b"1")
+
+        requested_directory = self.conn.recv(Client.BUFFER_SIZE).decode()
+        self.conn.sendall(b"1")
+        
+        name_of_user = self.conn.recv(Client.BUFFER_SIZE).decode()
+        access = False
+        for directory, user_list in PERMISSION_LIST.items():
+            if os.path.isdir(requested_directory):
+                if directory == requested_directory:
+                    for username in user_list:
+                        if username == self.username:
+                            access = True
+        if access:
+            try:
+                PERMISSION_LIST[requested_directory].append(name_of_user)
+                save_permissions()
+                self.conn.sendall(b"200 OK! permission granted.")
+            except KeyError as e:
+                self.conn.sendall(b"400 action failed.")
+                print(e)
+        else:
+            self.conn.sendall(b"400 access denied.")
+            return None
 
     def upload_file(self) -> None:
         # Send data connection port number
@@ -150,14 +198,15 @@ class Client(Thread):
             file_name_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
             client_data_socket.sendall(b"1")
 
-            file_name = client_data_socket.recv(file_name_size).decode()
+            file_path = client_data_socket.recv(file_name_size).decode()
             client_data_socket.sendall(b"1")
             
             file_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
             client_data_socket.sendall(b"1")
 
             start_time = time.time()
-
+            file_name = file_path.split('/')
+            file_name = FIRST_PATH + self.PATH + '/' + file_name[-1]
             with open(file_name, "wb") as output_file:
                 bytes_received = 0
                 print("\nReceiving...")
@@ -312,8 +361,22 @@ class Client(Thread):
 
         directory_name = self.conn.recv(directory_name_length).decode()
 
+        
         try: 
-            os.mkdir(directory_name) 
+            if directory_name[0] == '/':
+                os.mkdir(FIRST_PATH + directory_name)
+                PERMISSION_LIST[directory_name] = ['admin']
+                if self.username != "admin:":
+                    PERMISSION_LIST[directory_name].append(self.username)
+                save_permissions()
+
+            else:
+                os.mkdir(FIRST_PATH + self.PATH + '/' + directory_name)
+                PERMISSION_LIST[self.PATH + '/' + directory_name] = ['admin']
+                if self.username != "admin:":
+                    PERMISSION_LIST[self.PATH + '/' + directory_name].append(self.username)
+                save_permissions()
+                
             self.conn.sendall(b"1")
         except OSError as e: 
             print(f"{e}, {type(e)}")
@@ -325,27 +388,57 @@ class Client(Thread):
         self.conn.sendall(b"1")
 
         directory_name = self.conn.recv(directory_name_length).decode()
-
+        
         try: 
-            os.rmdir(directory_name) 
-            self.conn.sendall(b"1")
+            access = False
+            for directory, user_list in PERMISSION_LIST.items():
+                if directory_name[0] == '/':
+                    if os.path.isdir(directory_name):
+                        if directory == directory_name:
+                            for username in user_list:
+                                if username == self.username:
+                                    access = True
+                else:
+                    if os.path.isdir(FIRST_PATH + self.PATH + '/' + directory_name):
+                        if directory == FIRST_PATH + self.PATH + '/' + directory_name:
+                            for username in user_list:
+                                if username == self.username:
+                                    access = True
         except OSError as e: 
             print(f"{e}, {type(e)}")
             self.conn.sendall(b"0")
+            return None
+        if access:
+            try: 
+                if directory_name[0] == '/':
+                    os.rmdir(FIRST_PATH + directory_name)
+                    PERMISSION_LIST.pop(directory_name)
+                    save_permissions()
+                else:
+                    os.rmdir(FIRST_PATH + self.PATH + '/' + directory_name) 
+                    PERMISSION_LIST.pop(self.PATH + '/' + directory_name)
+                    save_permissions()
+
+                self.conn.sendall(b"1")
+            except OSError as e: 
+                print(f"{e}, {type(e)}")
+                self.conn.sendall(b"0")
+                return None
+        else:
+            self.conn.sendall(b"-1")
+            return None
 
     def get_path_directory(self) -> None:
         self.conn.sendall(b"1")
 
         try:
-            cwd = os.getcwd()
-            print(cwd)
             self.conn.recv(Client.BUFFER_SIZE)
 
-            self.conn.sendall(str(sys.getsizeof(cwd)).encode())
-            print(sys.getsizeof(cwd))
+            self.conn.sendall(str(sys.getsizeof(self.PATH)).encode())
+            print(sys.getsizeof(self.PATH))
             self.conn.recv(Client.BUFFER_SIZE)
 
-            self.conn.sendall(cwd.encode())
+            self.conn.sendall(self.PATH.encode())
             self.conn.recv(Client.BUFFER_SIZE)
 
         except OSError as e: 
@@ -362,24 +455,65 @@ class Client(Thread):
         self.conn.sendall(b"1")
 
         new_path = self.conn.recv(new_path_length).decode()
-
         try: 
-            os.chdir(new_path) 
-            self.conn.sendall(b"1")
+            access = False
+            for directory, user_list in PERMISSION_LIST.items():
+                if new_path[0] == '/':
+                    if os.path.isdir(new_path):
+                        if directory == new_path:
+                            for username in user_list:
+                                if username == self.username:
+                                    access = True
+                else:
+                    if os.path.isdir(FIRST_PATH + self.PATH + '/' + new_path):
+                        if directory == FIRST_PATH + self.PATH + '/' + new_path:
+                            for username in user_list:
+                                if username == self.username:
+                                    access = True
         except OSError as e: 
             print(f"{e}, {type(e)}")
             self.conn.sendall(b"0")
-
-    def noghte_noghte_directory(self) -> None:
-            self.conn.sendall(b"1")
-            self.conn.recv(Client.BUFFER_SIZE)
-            
+            return None
+        
+        if access:
             try: 
-                os.chdir('../')
+                if new_path[0] == '/':
+                    self.PATH = new_path
+                else:
+                    self.PATH += '/' + new_path
                 self.conn.sendall(b"1")
             except OSError as e: 
                 print(f"{e}, {type(e)}")
                 self.conn.sendall(b"0")
+        else:
+            self.conn.sendall(b"-1")
+
+    def noghte_noghte_directory(self) -> None:
+            self.conn.sendall(b"1")
+            self.conn.recv(Client.BUFFER_SIZE)
+            new_path = []
+            for folder in self.PATH.split('/'):
+                new_path.append(folder)
+            new_path.pop(-1)
+            new_path = '/'.join(new_path)
+
+            access = False
+            for directory, user_list in PERMISSION_LIST.items():
+                if os.path.isdir(new_path):
+                    if directory == new_path:
+                        for username in user_list:
+                            if username == self.username:
+                                access = True
+            if access:
+                try: 
+                    self.PATH = new_path
+
+                    self.conn.sendall(b"1")
+                except OSError as e: 
+                    print(f"{e}, {type(e)}")
+                    self.conn.sendall(b"0")
+            else:
+                self.conn.sendall(b"-1")
 
     def quit_program(self) -> None:
         self.conn.sendall(b"1")
