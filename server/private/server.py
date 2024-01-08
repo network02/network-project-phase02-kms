@@ -37,6 +37,7 @@ class Client(Thread):
         while True:
             
             print("\nWaiting for instruction")
+
             data = self.conn.recv(Client.BUFFER_SIZE).decode()
             print("\nReceived instruction: {}".format(data))
             # save_history(data)
@@ -46,6 +47,7 @@ class Client(Thread):
             elif data == "PASS":
                 self.check_password()
             elif self.authenticated:
+                # self.conn.sendall(b"1")
                 if data == "STOR":
                     self.upload_file()
                 elif data == "LIST":
@@ -66,7 +68,10 @@ class Client(Thread):
                     self.noghte_noghte_directory()
                 elif data == "QUIT":
                     self.quit_program()
-                    break
+                    # self.exit()
+                    return
+            # elif not self.authenticated:
+            #     self.conn.sendall(b"530 Not logged in.")
 
             data = None
 
@@ -121,6 +126,8 @@ class Client(Thread):
 
     def user_create(self, password: str) -> None:
         self.password = password
+        self.exist = True
+        self.authenticated = True
         user_dict = {"username": self.username, "password": self.password}
         USER_LIST.append(user_dict)
         with open("users.json", "w") as user_file:
@@ -134,19 +141,21 @@ class Client(Thread):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
             data_socket.bind((Client.TCP_IP, self.TCP_DATA_PORT))
             data_socket.listen()
-            # self.conn.sendall(b"1")
+            self.conn.sendall(b"1")
             client_data_socket, client_data_address = data_socket.accept()
             print(f"\nConnected to DATA socket by address: {client_data_address}, port: {self.TCP_DATA_PORT}")
 
             client_data_socket.sendall(b"1")
             
             file_name_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
+            client_data_socket.sendall(b"1")
+
             file_name = client_data_socket.recv(file_name_size).decode()
-            
             client_data_socket.sendall(b"1")
             
             file_size = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
-            
+            client_data_socket.sendall(b"1")
+
             start_time = time.time()
 
             with open(file_name, "wb") as output_file:
@@ -154,24 +163,33 @@ class Client(Thread):
                 print("\nReceiving...")
                 while bytes_received < file_size:
                     l = client_data_socket.recv(Client.BUFFER_SIZE)
+                    client_data_socket.sendall(b"1")
                     output_file.write(l)
                     bytes_received += Client.BUFFER_SIZE
 
             print(f"\nReceived file: {file_name}")
+            client_data_socket.recv(Client.BUFFER_SIZE)
 
             client_data_socket.sendall(str(time.time() - start_time).encode())
+            client_data_socket.recv(Client.BUFFER_SIZE)
+
             client_data_socket.sendall(str(file_size).encode())
+            client_data_socket.recv(Client.BUFFER_SIZE)
 
     def list_files(self) -> None:
-        path_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
-        self.conn.sendall(b"1") 
-        path_name = self.conn.recv(path_name_length).decode()
         self.conn.sendall(b"1")
-        print(os.path.isdir(path_name))
-        print(os.path.isfile(path_name))
+
+        path_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
+        self.conn.sendall(b"1")
+
+        path_name = self.conn.recv(path_name_length).decode()
+        print(path_name)
+
         if os.path.isdir(path_name):
+            self.conn.sendall(b"1")
+            self.conn.recv(Client.BUFFER_SIZE)
             directories_list = os.listdir(path_name)
-            print(directories_list)
+            # print(directories_list)
             self.conn.sendall(str(len(directories_list)).encode())
 
             total_directory_size = 0
@@ -182,21 +200,19 @@ class Client(Thread):
 
 
                 self.conn.sendall(str(sys.getsizeof(directory)).encode('utf8'))
-                print("file name size sent")
-                print(sys.getsizeof(directory))
+                # print("file name size sent")
+                # print(sys.getsizeof(directory))
                 self.conn.recv(Client.BUFFER_SIZE)
 
                 self.conn.sendall(directory.encode())
-                print("file name sent")
+                # print("file name sent")
                 self.conn.recv(Client.BUFFER_SIZE)
 
-                self.conn.sendall(str(os.path.getsize(directory)).encode())
-                print("file size sent")
+                self.conn.sendall(str(os.path.getsize(path_name + '/' + directory)).encode())
+                # print("file size sent")
                 self.conn.recv(Client.BUFFER_SIZE)
 
-                total_directory_size += os.path.getsize(directory)
-
-                self.conn.recv(Client.BUFFER_SIZE)
+                total_directory_size += os.path.getsize(path_name + '/' + directory)
 
             self.conn.sendall(str(total_directory_size).encode())
 
@@ -204,6 +220,8 @@ class Client(Thread):
             print("Successfully sent file listing")
  
         elif os.path.isfile(path_name):
+            self.conn.sendall(b"0")
+            self.conn.recv(Client.BUFFER_SIZE)
             with open(path_name, "r") as file:
                 self.conn.sendall(str(os.path.getsize(path_name)).encode())
                 self.conn.recv(Client.BUFFER_SIZE)
@@ -211,26 +229,31 @@ class Client(Thread):
                 print("\nSending...")
                 while l:
                     self.conn.sendall(l.encode())
+                    self.conn.recv(Client.BUFFER_SIZE)
                     l = file.read(Client.BUFFER_SIZE)
-        
+        else:
+            self.conn.sendall(b"-1")
+            self.conn.recv(Client.BUFFER_SIZE)
 
-            
+
 
     def download_file(self) -> None:
         # Send data connection port number
-        self.conn.sendall(str(Client.TCP_DATA_PORT).encode())
+        self.conn.sendall(str(self.TCP_DATA_PORT).encode())
         self.conn.recv(Client.BUFFER_SIZE)
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as data_socket:
-            data_socket.bind((Client.TCP_IP, Client.TCP_DATA_PORT))
+            data_socket.bind((Client.TCP_IP, self.TCP_DATA_PORT))
             data_socket.listen()
-            # self.conn.sendall(b"1")
+            self.conn.sendall(b"1")
             client_data_socket, client_data_address = data_socket.accept()
             print(f"\nConnected to DATA socket by address: {client_data_address}, port: {self.TCP_DATA_PORT}")
         
             client_data_socket.sendall(b"1")
 
             file_name_length = int(client_data_socket.recv(Client.BUFFER_SIZE).decode())
+            client_data_socket.sendall(b"1")
+
             file_name = client_data_socket.recv(file_name_length).decode()
 
             if os.path.isfile(file_name):
@@ -250,16 +273,16 @@ class Client(Thread):
                 l = content.read(Client.BUFFER_SIZE)
                 while l:
                     client_data_socket.sendall(l)
+                    client_data_socket.recv(Client.BUFFER_SIZE)
                     l = content.read(Client.BUFFER_SIZE)
-
-            client_data_socket.recv(Client.BUFFER_SIZE)
-            client_data_socket.sendall(str(time.time() - start_time).encode())
         return None
 
     def delete_file(self) -> None:
         self.conn.sendall(b"1")
 
         file_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
+        self.conn.sendall(b"1")
+
         file_name = self.conn.recv(file_name_length).decode()
 
         # Check if file exist
@@ -285,11 +308,10 @@ class Client(Thread):
     def make_directory(self) -> None:
         self.conn.sendall(b"1")
         directory_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
-
         self.conn.sendall(b"1")
+
         directory_name = self.conn.recv(directory_name_length).decode()
 
-        self.conn.sendall(b"1")
         try: 
             os.mkdir(directory_name) 
             self.conn.sendall(b"1")
@@ -300,11 +322,10 @@ class Client(Thread):
     def remove_directory(self) -> None:
         self.conn.sendall(b"1")
         directory_name_length = int(self.conn.recv(Client.BUFFER_SIZE).decode())
-
         self.conn.sendall(b"1")
+
         directory_name = self.conn.recv(directory_name_length).decode()
 
-        self.conn.sendall(b"1")
         try: 
             os.rmdir(directory_name) 
             self.conn.sendall(b"1")
@@ -318,13 +339,18 @@ class Client(Thread):
         try:
             cwd = os.getcwd()
             print(cwd)
+            self.conn.recv(Client.BUFFER_SIZE)
+
             self.conn.sendall(str(sys.getsizeof(cwd)).encode())
             print(sys.getsizeof(cwd))
             self.conn.recv(Client.BUFFER_SIZE)
+
             self.conn.sendall(cwd.encode())
             self.conn.recv(Client.BUFFER_SIZE)
+
         except OSError as e: 
             print(f"{e}, {type(e)}")
+
         except Exception as e:
             print(f"{e}, {type(e)}")
             print("couldn't send path.")
@@ -336,7 +362,6 @@ class Client(Thread):
         self.conn.sendall(b"1")
 
         new_path = self.conn.recv(new_path_length).decode()
-        self.conn.sendall(b"1")
 
         try: 
             os.chdir(new_path) 
@@ -347,6 +372,7 @@ class Client(Thread):
 
     def noghte_noghte_directory(self) -> None:
             self.conn.sendall(b"1")
+            self.conn.recv(Client.BUFFER_SIZE)
             
             try: 
                 os.chdir('../')
