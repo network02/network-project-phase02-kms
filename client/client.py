@@ -3,14 +3,15 @@ import sys
 import os
 
 
-TCP_IP = "127.0.0.1"  
-TCP_PORT = 1456  
-BUFFER_SIZE = 1024  
+TCP_IP = "127.0.0.1"
+TCP_PORT = 1456
+BUFFER_SIZE = 1024
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 LOGGED_IN_STATUS = True
 
+
 def connect():
-    
+
     print("Sending server request...")
     try:
         s.connect((TCP_IP, TCP_PORT))
@@ -23,10 +24,11 @@ def user(username: str):
     try:
         s.sendall(b"USER")
     except Exception as e:
-        print("421 Couldn't make server request. Make sure a connection has been established.")
+        print(
+            "421 Couldn't make server request. Make sure a connection has been established.")
         print(f"{e}, {type(e)}")
         return None
-    
+
     s.recv(BUFFER_SIZE)
     s.sendall(f"{username}".encode())
     s.recv(BUFFER_SIZE)
@@ -39,7 +41,8 @@ def password(password: str):
     try:
         s.sendall(b"PASS")
     except Exception as e:
-        print("421 Couldn't make server request. Make sure a connection has been established.")
+        print(
+            "421 Couldn't make server request. Make sure a connection has been established.")
         print(f"{e}, {type(e)}")
         return None
 
@@ -55,10 +58,11 @@ def upload(file_name: str):
     try:
         s.sendall(b"STOR")
     except Exception as e:
-        print("421 Couldn't make server request. Make sure a connection has been established.")
+        print(
+            "421 Couldn't make server request. Make sure a connection has been established.")
         print(f"{e}, {type(e)}")
         return None
-        
+
     data_port = int(s.recv(BUFFER_SIZE).decode())
     s.sendall(b"1")
 
@@ -74,20 +78,21 @@ def upload(file_name: str):
 
         # Upload a file
         print("\nUploading file: {}...".format(file_name))
-        
+
         try:
             content = open(file_name, "rb")
         except Exception as e:
-            print("450 Couldn't open file. Make sure the file name was entered correctly.")
+            print(
+                "450 Couldn't open file. Make sure the file name was entered correctly.")
             print(f"{e}, {type(e)}")
             return None
-        
+
         try:
             data_socket.recv(BUFFER_SIZE)
 
             data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.recv(BUFFER_SIZE)
-            
+
             data_socket.sendall(file_name.encode())
             data_socket.recv(BUFFER_SIZE)
 
@@ -97,7 +102,7 @@ def upload(file_name: str):
         except Exception as e:
             print(f"{e}, {type(e)}")
             print("450 Error sending file details")
-            
+
         try:
             l = content.read(BUFFER_SIZE)
             print("\nSending...")
@@ -106,22 +111,24 @@ def upload(file_name: str):
                 data_socket.recv(BUFFER_SIZE)
                 print("...")
                 l = content.read(BUFFER_SIZE)
-                
+
             content.close()
-            data_socket.sendall(b"1") 
+            data_socket.sendall(b"1")
 
             upload_time = data_socket.recv(BUFFER_SIZE).decode()
-            data_socket.sendall(b"1")     
+            data_socket.sendall(b"1")
 
             upload_size = data_socket.recv(BUFFER_SIZE).decode()
             data_socket.sendall(b"1")
 
-            print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(file_name, upload_time, upload_size))
+            print("\nSent file: {}\nTime elapsed: {}s\nFile size: {}b".format(
+                file_name, upload_time, upload_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
             print("450 Error sending file")
             return None
     return None
+
 
 def sleeep():
     s.sendall(b"SLEEP")
@@ -129,27 +136,28 @@ def sleeep():
 
 
 def list_files(path_name: str):
-    
+
     print("Requesting files...\n")
     try:
         s.sendall(b"LIST")
         s.recv(BUFFER_SIZE)
     except Exception as e:
         print(f"{e}, {type(e)}")
-        print("421 Couldn't make server request. Make sure a connection has been established.")
+        print(
+            "421 Couldn't make server request. Make sure a connection has been established.")
         return None
     # print("hey")
-    try: 
+    try:
         s.sendall(str(sys.getsizeof(path_name)).encode())
         s.recv(BUFFER_SIZE)
         s.sendall(path_name.encode())
     except Exception as e:
         print(f"{e}, {type(e)}")
         return None
-    
+
     isdir = int(s.recv(BUFFER_SIZE).decode())
     s.sendall(b"1")
-    if isdir == 1:    
+    if isdir == 1:
         try:
             number_of_files = int(s.recv(BUFFER_SIZE).decode())
             s.sendall(b"1")
@@ -161,19 +169,19 @@ def list_files(path_name: str):
                 file_name = s.recv(file_name_size).decode()
                 # print(file_name)
                 s.sendall(b"1")
-                
+
                 file_size = int(s.recv(BUFFER_SIZE).decode())
                 # print(file_size)
                 s.sendall(b"1")
-                
+
                 print("\t{} - {}b".format(file_name, file_size))
-                
+
             total_directory_size = s.recv(BUFFER_SIZE).decode()
             print("Total directory size: {}b".format(total_directory_size))
         except Exception as e:
             print(f"{e}, {type(e)}")
             return None
-        
+
         try:
             s.sendall(b"1")
             return None
@@ -181,7 +189,7 @@ def list_files(path_name: str):
             print(f"{e}, {type(e)}")
             print("451 Couldn't get final server confirmation")
             return None
-        
+
     elif isdir == 0:
         file_size = int(s.recv(BUFFER_SIZE).decode())
         s.sendall(b"1")
@@ -196,7 +204,6 @@ def list_files(path_name: str):
         print(content)
     elif isdir == -1:
         print("400 Path name does not exist")
-    
 
 
 def download(file_name: str):
@@ -206,7 +213,7 @@ def download(file_name: str):
         print(f"{e}, {type(e)}")
         print("421 Couldn't make server request. Make sure a connection has been established.")
         return None
-    
+
     data_port = int(s.recv(BUFFER_SIZE).decode())
     s.sendall(b"1")
 
@@ -219,12 +226,11 @@ def download(file_name: str):
         except Exception as e:
             print(f"{e}, {type(e)}")
             return None
-        
+
         print("Downloading file: {}".format(file_name))
-        
+
         try:
             data_socket.recv(BUFFER_SIZE)
-            print("haha")
 
             data_socket.sendall(str(sys.getsizeof(file_name)).encode())
             data_socket.recv(BUFFER_SIZE)
@@ -258,9 +264,10 @@ def download(file_name: str):
             return None
     return None
 
+
 def delete_file(file_name: str):
     print("Deleting file: {}...".format(file_name))
-    
+
     try:
         s.sendall(b"DELE")
         s.recv(BUFFER_SIZE)
@@ -268,7 +275,7 @@ def delete_file(file_name: str):
         print(f"{e}, {type(e)}")
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
-    
+
     try:
         s.sendall(str(sys.getsizeof(file_name)).encode())
         s.recv(BUFFER_SIZE)
@@ -278,7 +285,7 @@ def delete_file(file_name: str):
         print(f"{e}, {type(e)}")
         print("450 Couldn't send file details")
         return None
-    
+
     try:
         file_exists = int(s.recv(BUFFER_SIZE).decode())
         if file_exists == -1:
@@ -288,10 +295,10 @@ def delete_file(file_name: str):
         print(f"{e}, {type(e)}")
         print("450 Couldn't determine file existence")
         return None
-    
+
     try:
         confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
-        
+
         while confirm_delete != "Y" and confirm_delete != "N" and confirm_delete != "YES" and confirm_delete != "NO":
             print("502 Command not recognized, try again")
             confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
@@ -299,7 +306,7 @@ def delete_file(file_name: str):
         print(f"{e}, {type(e)}")
         print("400 Couldn't confirm deletion status")
         return None
-    
+
     try:
         if confirm_delete == "Y" or confirm_delete == "YES":
             s.sendall(b"Y")
@@ -318,6 +325,7 @@ def delete_file(file_name: str):
         print("450 Couldn't delete the file")
         return None
 
+
 def make_directory(directory_name: str):
     print("Creating Directory: {}...".format(directory_name))
     try:
@@ -326,7 +334,7 @@ def make_directory(directory_name: str):
     except:
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
-    
+
     try:
         s.sendall(str(sys.getsizeof(directory_name)).encode())
         s.recv(BUFFER_SIZE)
@@ -335,12 +343,14 @@ def make_directory(directory_name: str):
     except:
         print("450 Couldn't send Directory details")
         return None
-     
+
     directory_check = int(s.recv(BUFFER_SIZE).decode())
-    if directory_check:
+    if directory_check == 1:
         print("200 OK! directory created successfully.")
-    else:
+    elif directory_check == 0:
         print("400 couldn't create the directory.")
+    elif directory_check == -1:
+        print("400 access denied.")
     return None
 
 
@@ -355,12 +365,12 @@ def remove_directory(directory_name: str):
     try:
         s.sendall(str(sys.getsizeof(directory_name)).encode())
         s.recv(BUFFER_SIZE)
-        
+
         s.sendall(directory_name.encode())
     except:
         print("450 Couldn't send Directory details")
         return None
-     
+
     directory_check = int(s.recv(BUFFER_SIZE).decode())
     if directory_check == 1:
         print("200 OK! directory removed successfully.")
@@ -369,8 +379,8 @@ def remove_directory(directory_name: str):
     elif directory_check == -1:
         print("400 access denied.")
     return None
-        
-    
+
+
 def get_path_directory():
     print("Getting the path...")
     try:
@@ -379,7 +389,7 @@ def get_path_directory():
     except Exception as e:
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
-    
+
     try:
         s.sendall(b"1")
 
@@ -413,7 +423,7 @@ def change_current_directory(new_path: str):
     except:
         print("400 Couldn't send Path details")
         return None
-     
+
     change_check = int(s.recv(BUFFER_SIZE).decode())
     if change_check == 1:
         print("200 OK!path changed successfully.")
@@ -423,6 +433,7 @@ def change_current_directory(new_path: str):
         print("400 access denied.")
     return None
 
+
 def noghte_noghte_directory():
     print("Changing Directory: {}...".format('../'))
     try:
@@ -431,7 +442,7 @@ def noghte_noghte_directory():
     except:
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
-    
+
     s.sendall(b"1")
     change_check = int(s.recv(BUFFER_SIZE).decode())
     if change_check == 1:
@@ -441,6 +452,8 @@ def noghte_noghte_directory():
     elif change_check == -1:
         print("400 access denied.")
     return None
+
+
 def access_provide(directory_name, user_name):
     try:
         s.sendall(b"PROM")
@@ -449,7 +462,7 @@ def access_provide(directory_name, user_name):
         print("421 Couldn't connect to the server. Make sure a connection has been established.")
         return None
 
-    try: 
+    try:
         s.sendall(directory_name.encode())
         s.recv(BUFFER_SIZE)
 
@@ -457,7 +470,7 @@ def access_provide(directory_name, user_name):
     except:
         print("450 Couldn't send Directory details")
         return None
-    
+
     message = s.recv(BUFFER_SIZE).decode()
     print(message)
 
@@ -468,6 +481,7 @@ def quit_program():
     s.close()
     print("200 OK! Server connection ended")
     return None
+
 
 print("""\n\nWelcome to the FTP client.
       
@@ -521,7 +535,9 @@ while True:
         elif prompt[0].upper() == "SLEEP":
             sleeep()
         elif prompt[0].upper() == "PROM":
-            access_provide(prompt[1],prompt[2])
+            access_provide(prompt[1], prompt[2])
+        elif prompt[0].upper() == "REPORT":
+            download("/server/private/server.log")
         else:
             print("502 Command not recognized; please try again")
     else:

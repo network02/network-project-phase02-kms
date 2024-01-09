@@ -1,0 +1,7 @@
+01/09/2024 11:04:53 PM Server ON.
+01/09/2024 11:05:05 PM          CONN - <socket.socket fd=5, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 1456), raddr=('127.0.0.1', 59988)> - ('127.0.0.1', 59988) - connection made successfully.
+01/09/2024 11:05:34 PM arshia - USER - 331 User name okay, need password.
+01/09/2024 11:05:38 PM arshia - PASS - 230 User logged in, proceed.
+01/09/2024 11:05:49 PM arshia - MKD - 400 Access denied.
+01/09/2024 11:06:17 PM arshia - PWD - 200 Path sent successfully. - Path=/server/Public
+01/09/2024 11:16:58 PM arshia - QUIT - 200 OK! Client connection ended.
