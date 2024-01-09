@@ -268,6 +268,7 @@ class Client(Thread):
 
         if access:
             if os.path.isdir(FIRST_PATH + path_name):
+
                 self.conn.sendall(b"1")
                 self.conn.recv(Client.BUFFER_SIZE)
                 directories_list = os.listdir(FIRST_PATH + path_name)
@@ -325,6 +326,7 @@ class Client(Thread):
                 logging.error(f"{self.username} - LIST - 400 action failed.")
                 return None
         else:
+            self.conn.sendall(b"-2")
             logging.error(f"{self.username} - LIST - 400 access denied.")
             return None
 
@@ -374,7 +376,8 @@ class Client(Thread):
 
             if access:
                 print("Sending file...")
-
+                self.conn.sendall(b"1")
+                self.conn.recv(Client.BUFFER_SIZE)
                 with open(file_name, "rb") as content:
                     l = content.read(Client.BUFFER_SIZE)
                     while l:
@@ -383,6 +386,8 @@ class Client(Thread):
                         l = content.read(Client.BUFFER_SIZE)
                     logging.info(f"{self.username} - RETR - 200 OK! file downloaded successfully. DATA socket closed.")
             else:
+                self.conn.sendall(b"0")
+                self.conn.recv(Client.BUFFER_SIZE)
                 logging.info(f"{self.username} - RETR - 400 access denied")
         return None
 
@@ -416,27 +421,28 @@ class Client(Thread):
                 for username in user_list:
                     if username == self.username:
                         access = True
-                    
-        if access:
+
+        self.conn.recv(Client.BUFFER_SIZE)         
+        if access:        
+            self.conn.sendall(b"1")
+
             confirm_delete = self.conn.recv(Client.BUFFER_SIZE).decode()
             if confirm_delete.upper() == "Y":
                 try:
                     os.remove(FIRST_PATH + file_name)
                     # send delete status
                     self.conn.sendall(b"1")
-                    logging.info(
-                        f"{self.username} - DELE - 200 OK! file deleted successfully.")
+                    logging.info(f"{self.username} - DELE - 200 OK! file deleted successfully.")
                 except OSError as e:
                     print(f"Failed to delete {file_name}")
                     print(f"{e}, {type(e)}")
-                    logging.info(
-                        f"{self.username} - DELE - Failed to delete {file_name} - {e}")
+                    logging.info(f"{self.username} - DELE - Failed to delete {file_name} - {e}")
                     self.conn.sendall(b"-1")
             else:
                 print("Delete abandoned by the client!")
-                logging.info(
-                    f"{self.username} - DELE - Delete abandoned by the client!")
+                logging.info(f"{self.username} - DELE - Delete abandoned by the client!")
         else:
+            self.conn.sendall(b"0")   
             logging.info(f"{self.username} - DELE - 400 access denied")
 
     def make_directory(self) -> None:

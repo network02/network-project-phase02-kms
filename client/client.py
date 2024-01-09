@@ -204,6 +204,8 @@ def list_files(path_name: str):
         print(content)
     elif isdir == -1:
         print("400 Path name does not exist")
+    elif isdir == -2:
+        print("400 access denied")
 
 
 def download(file_name: str):
@@ -247,17 +249,22 @@ def download(file_name: str):
             return None
         try:
             data_socket.sendall(b"1")
-
-            output_file = open(file_name, "wb")
-            bytes_received = 0
-            print("\nDownloading...")
-            while bytes_received < file_size:
-                l = data_socket.recv(BUFFER_SIZE)
-                data_socket.sendall(b"1")
-                output_file.write(l)
-                bytes_received += BUFFER_SIZE
-            output_file.close()
-            print("250 OK! Successfully downloaded {}".format(file_name))
+            has_access = int(data_socket.recv(BUFFER_SIZE).decode())
+            data_socket.sendall(b"1")
+            if has_access:
+                output_file = open(file_name, "wb")
+                bytes_received = 0
+                print("\nDownloading...")
+                while bytes_received < file_size:
+                    l = data_socket.recv(BUFFER_SIZE)
+                    data_socket.sendall(b"1")
+                    output_file.write(l)
+                    bytes_received += BUFFER_SIZE
+                output_file.close()
+                print("250 OK! Successfully downloaded {}".format(file_name))
+            else:
+                print("400 access denied.")
+                return None
         except Exception as e:
             print(f"{e}, {type(e)}")
             print("450 Error downloading file")
@@ -296,34 +303,39 @@ def delete_file(file_name: str):
         print("450 Couldn't determine file existence")
         return None
 
-    try:
-        confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
-
-        while confirm_delete != "Y" and confirm_delete != "N" and confirm_delete != "YES" and confirm_delete != "NO":
-            print("502 Command not recognized, try again")
+    s.sendall(b"1")
+    has_access = int(s.recv(BUFFER_SIZE).decode())
+    if has_access:
+        try:
             confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
-    except Exception as e:
-        print(f"{e}, {type(e)}")
-        print("400 Couldn't confirm deletion status")
-        return None
 
-    try:
-        if confirm_delete == "Y" or confirm_delete == "YES":
-            s.sendall(b"Y")
-            delete_status = int(s.recv(BUFFER_SIZE).decode())
-            if delete_status == 1:
-                print("250 OK! File successfully deleted")
-                return None
-            else:
-                print("450 File failed to delete")
-                return None
-        else:
-            s.sendall(b"N")
-            print("200 OK!Delete abandoned by user!")
+            while confirm_delete != "Y" and confirm_delete != "N" and confirm_delete != "YES" and confirm_delete != "NO":
+                print("502 Command not recognized, try again")
+                confirm_delete = input("Are you sure you want to delete {}? (Y/N)\n".format(file_name)).upper()
+        except Exception as e:
+            print(f"{e}, {type(e)}")
+            print("400 Couldn't confirm deletion status")
             return None
-    except:
-        print("450 Couldn't delete the file")
-        return None
+
+        try:
+            if confirm_delete == "Y" or confirm_delete == "YES":
+                s.sendall(b"Y")
+                delete_status = int(s.recv(BUFFER_SIZE).decode())
+                if delete_status == 1:
+                    print("250 OK! File successfully deleted")
+                    return None
+                else:
+                    print("450 File failed to delete")
+                    return None
+            else:
+                s.sendall(b"N")
+                print("200 OK!Delete abandoned by user!")
+                return None
+        except:
+            print("450 Couldn't delete the file")
+            return None
+    else:
+        print("400 access denied.")
 
 
 def make_directory(directory_name: str):
