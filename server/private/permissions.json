@@ -1,1 +1,1 @@
-{"/server": ["admin"], "/server/private": ["admin"], "/server/Public": ["admin", "arshia", "kimya", "jj", "dkimb", "pass"], "/server/Public/this": ["admin"], "/server/Public/arsh": ["admin", "arshia"], "/server/Public/arsh2": ["admin", "arshia", "kimya"], "/server/Public/kimya": ["admin", "dkimb"], "/server/Public/kimya/kimya2": ["admin", "dkimb"], "/server/Public/arsh3": ["admin", "arshia"], "/server/Public/arsh4": ["admin", "arshia"], "/server/private/arrrrr": ["admin", "arshia"]}
+{"/server": ["admin"], "/server/private": ["admin"], "/server/Public": ["admin", "arshia"]}

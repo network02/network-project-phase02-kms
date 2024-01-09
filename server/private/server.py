@@ -376,9 +376,9 @@ class Client(Thread):
 
             if access:
                 print("Sending file...")
-                self.conn.sendall(b"1")
-                self.conn.recv(Client.BUFFER_SIZE)
-                with open(file_name, "rb") as content:
+                client_data_socket.sendall(b"1")
+                client_data_socket.recv(Client.BUFFER_SIZE)
+                with open(FIRST_PATH +file_name, "rb") as content:
                     l = content.read(Client.BUFFER_SIZE)
                     while l:
                         client_data_socket.sendall(l)
@@ -386,8 +386,8 @@ class Client(Thread):
                         l = content.read(Client.BUFFER_SIZE)
                     logging.info(f"{self.username} - RETR - 200 OK! file downloaded successfully. DATA socket closed.")
             else:
-                self.conn.sendall(b"0")
-                self.conn.recv(Client.BUFFER_SIZE)
+                client_data_socket.sendall(b"0")
+                client_data_socket.recv(Client.BUFFER_SIZE)
                 logging.info(f"{self.username} - RETR - 400 access denied")
         return None
 
@@ -457,14 +457,26 @@ class Client(Thread):
             access = False
             for directory, user_list in PERMISSION_LIST.items():
                 if directory_name[0] == '/':
-                    if os.path.isdir(FIRST_PATH + directory_name):
-                        if directory == directory_name:
+                    new_path = []
+                    for folder in (directory_name).split('/'):
+                        new_path.append(folder)
+                    new_path.pop(-1)
+                    new_path = '/'.join(new_path)
+                    print(new_path)
+                    if os.path.isdir(FIRST_PATH + new_path):
+                        if directory == new_path:
                             for username in user_list:
                                 if username == self.username:
                                     access = True
                 else:
-                    if os.path.isdir(FIRST_PATH + self.PATH + '/' + directory_name):
-                        if directory == self.PATH + '/' + directory_name:
+                    new_path = []
+                    for folder in (self.PATH + '/' + directory_name).split('/'):
+                        new_path.append(folder)
+                    new_path.pop(-1)
+                    new_path = '/'.join(new_path)
+                    print(new_path)
+                    if os.path.isdir(FIRST_PATH + new_path):
+                        if directory == new_path:
                             for username in user_list:
                                 if username == self.username:
                                     access = True

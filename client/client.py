@@ -252,7 +252,7 @@ def download(file_name: str):
             has_access = int(data_socket.recv(BUFFER_SIZE).decode())
             data_socket.sendall(b"1")
             if has_access:
-                output_file = open(file_name, "wb")
+                output_file = open(file_name.split('/')[-1], "wb")
                 bytes_received = 0
                 print("\nDownloading...")
                 while bytes_received < file_size:
